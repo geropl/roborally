@@ -4,5 +4,8 @@ tasks:
 - init: >
     cd frontend;
     yarn install;
-  command: >
-    gatsby develop;
+  command: gatsby develop
+- init: >
+    cd backend;
+    cargo build;
+  command: cargo watch -x check

@@ -1,0 +1,19 @@
+[package]
+name = "backend"
+version = "0.1.0"
+authors = ["Gero Posmyk-Leinemann <gero.posmyk-leinemann@typefox.io>"]
+edition = "2018"
+
+[dependencies]
+tonic = { version = "0.1.0-alpha.4", features = ["rustls"] }
+bytes = "0.4"
+prost = "0.5"
+
+tokio = "=0.2.0-alpha.6"
+futures-preview = { version = "=0.3.0-alpha.19", default-features = false, features = ["alloc"]}
+async-stream = "0.1.2"
+http = "0.1"
+tower = "=0.3.0-alpha.2"
+
+[build-dependencies]
+tonic-build = "0.1.0-alpha.4"

@@ -1,11 +1,18 @@
 image:
   file: .gitpod/Dockerfile
 tasks:
-- init: >
+- name: frontend
+  init: >
     cd frontend;
-    yarn install;
-  command: gatsby develop
-- init: >
+    yarn install
+  command: >
+    cd frontend;
+    gatsby develop
+- name: backend
+  init: >
     cd backend;
     cargo build;
-  command: cargo watch -x check
+  command: >
+    cd backend;
+    cargo watch -x run
+- command: ""

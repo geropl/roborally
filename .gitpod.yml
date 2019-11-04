@@ -1,10 +1,10 @@
 image:
   file: .gitpod/Dockerfile
+
 tasks:
 - name: frontend
   init: >
-    cd frontend;
-    yarn install
+    yarn install && yarn build;
   command: >
     cd frontend;
     gatsby develop
@@ -15,4 +15,8 @@ tasks:
   command: >
     cd backend;
     cargo watch -x run
-- command: ""
+- command: "clear"
+
+ports:
+- port: 8000
+  onOpen: open-preview

@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "name": "backend-ts-client-lib",
+  "version": "0.0.0",
+  "license": "UNLICENSED",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "yarn clean && yarn gen-proto",
+    "gen-proto": "mkdir -p lib/proto && ./generate-proto.sh lib/proto",
+    "clean": "rm -Rf lib",
+    "purge": "yarn clean && rm -Rf ./node_modules"
+  },
+  "dependencies": {
+    "google-protobuf": "^3.8.0-rc.1",
+    "grpc-web": "^1.0.6"
+  },
+  "devDependencies": {
+    "@types/google-protobuf": "^3.2.7",
+    "ts-protoc-gen": "^0.12.0"
+  }
+}

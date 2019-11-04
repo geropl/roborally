@@ -1,0 +1,21 @@
+{
+    "private": true,
+    "name": "parent",
+    "version": "0.0.0",
+    "license": "UNLICENSED",
+    "scripts": {
+        "build": "lerna run build",
+        "clean": "lerna run clean",
+        "purge": "lerna run purge"
+    },
+    "devDependencies": {
+        "lerna": "^2.5.1",
+        "typescript": "^3.6.4"
+    },
+    "workspaces": {
+        "packages": [
+            "backend-ts-client-lib",
+            "frontend"
+        ]
+    }
+}

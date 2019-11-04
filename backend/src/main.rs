@@ -1,5 +1,7 @@
 use tonic::{transport::Server, Request, Response, Status};
 
+use std::env;
+
 mod protocol;
 use protocol::{
     server::{Greeter, GreeterServer},
@@ -23,11 +25,19 @@ impl Greeter for MyGreeter {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "127.0.0.1:50051".parse().unwrap();
+    let args: Vec<String> = env::args().collect();
+    let socket_addr = match &args.as_slice()[1..] {
+        [socket_addr_str] => {
+            socket_addr_str.parse().unwrap()
+        },
+        _ => {
+            panic!("Expected arguments: <address>:<port>!")
+        }
+    };
     let greeter = MyGreeter::default();
 
     Server::builder()
-        .serve(addr, GreeterServer::new(greeter))
+        .serve(socket_addr, GreeterServer::new(greeter))
         .await?;
 
     Ok(())

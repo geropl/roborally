@@ -14,7 +14,7 @@ tasks:
     cargo build;
   command: >
     cd backend;
-    cargo watch -x run
+    cargo watch -x 'run -- 127.0.0.1:8080'
 - command: "clear"
 
 ports:

@@ -15,7 +15,7 @@ tasks:
     cargo build;
   command: >
     cd backend;
-    cargo watch -x 'run -- 127.0.0.1:9090'
+    cargo watch -w . -w ../protocol -x 'run -- 127.0.0.1:9090'
 - name: grpc-web-proxy
   command: grpcwebproxy --backend_addr=localhost:9090 --run_tls_server=false --allow_all_origins
 - command: "clear"

@@ -25,3 +25,9 @@ RUN set -ex && \
 RUN wget https://github.com/grpc/grpc-web/releases/download/1.0.6/protoc-gen-grpc-web-1.0.6-linux-x86_64 && \
     mv protoc-gen-grpc-web-1.0.6-linux-x86_64 /usr/local/bin/protoc-gen-grpc-web && \
     chmod +x /usr/local/bin/protoc-gen-grpc-web
+
+# grpc-web-proxy (https://github.com/improbable-eng/grpc-web/tree/master/go/grpcwebproxy)
+RUN cd $(mktemp -d) && \
+    wget https://github.com/improbable-eng/grpc-web/releases/download/v0.11.0/grpcwebproxy-v0.11.0-linux-x86_64.zip -O grpcwebproxy.zip && \
+    unzip grpcwebproxy.zip && \
+    mv dist/grpcwebproxy-v0.11.0-linux-x86_64 /usr/local/bin/grpcwebproxy

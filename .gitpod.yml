@@ -1,5 +1,6 @@
 image:
   file: .gitpod/Dockerfile
+  context: .gitpod
 
 tasks:
 - name: frontend
@@ -7,16 +8,22 @@ tasks:
     yarn install && yarn build;
   command: >
     cd frontend;
-    gatsby develop
+    gatsby build && gatsby serve
 - name: backend
   init: >
     cd backend;
     cargo build;
   command: >
     cd backend;
-    cargo watch -x 'run -- 127.0.0.1:8080'
+    cargo watch -x 'run -- 127.0.0.1:9090'
+- name: grpc-web-proxy
+  command: grpcwebproxy --backend_addr=localhost:9090 --run_tls_server=false --allow_all_origins
 - command: "clear"
 
 ports:
-- port: 8000
-  onOpen: open-preview
+- port: 9000
+  onOpen: open-browser
+- port: 8080
+  onOpen: ignore
+- port: 9090
+  onOpen: ignore

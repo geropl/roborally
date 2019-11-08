@@ -27,3 +27,7 @@ ports:
   onOpen: ignore
 - port: 9090
   onOpen: ignore
+
+vscode:
+  extensions:
+    - zxh404.vscode-proto3@0.3.0:4f1jn72vQA2/LVoVSSmMtQ==

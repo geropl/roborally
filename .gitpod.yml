@@ -8,7 +8,7 @@ tasks:
     yarn install && yarn build;
   command: >
     cd frontend;
-    gatsby build && gatsby serve
+    gatsby develop
 - name: backend
   init: >
     cd backend;
@@ -21,10 +21,13 @@ tasks:
 - command: "clear"
 
 ports:
-- port: 9000
+# frontend: gatsby develop
+- port: 8000
   onOpen: open-browser
+# grpcwebproxy
 - port: 8080
   onOpen: ignore
+# backend
 - port: 9090
   onOpen: ignore
 

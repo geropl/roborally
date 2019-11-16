@@ -4,5 +4,6 @@ node_modules
 frontend/public/**
 
 backend/target/**
+target/**
 
 backend-ts-client-lib/lib/**

@@ -8,7 +8,7 @@ RUN bash -lc "npm install -g gatsby-cli"
 # Install rust beta
 RUN bash -lc "rustup install beta && \
     rustup default beta && \
-    rustup component add rustfmt"
+    rustup component add rustfmt rls-preview rust-analysis rust-src"
 
 USER root
 

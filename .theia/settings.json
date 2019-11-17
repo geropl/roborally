@@ -1,3 +1,15 @@
 {
-   "typescript.tsdk": "node_modules/typescript/lib"
+   "typescript.tsdk": "node_modules/typescript/lib",
+    "[json]": {
+      "editor.insertSpaces": true,
+      "editor.tabSize": 2
+    },
+    "[yaml]": {
+      "editor.insertSpaces": true,
+      "editor.tabSize": 2
+    },
+    "[rust]": {
+      "editor.insertSpaces": true,
+      "editor.tabSize": 4
+    },
 }

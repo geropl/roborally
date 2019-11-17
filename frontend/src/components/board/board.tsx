@@ -1,19 +1,18 @@
 import React from "react";
-import { BabylonBoardRenderer } from "./babylon-board-renderer";
+import { MelonJSBoardRenderer } from "./melonjs-board-renderer";
 
 export class Board extends React.Component<{}, {}> {
     protected canvasRef: React.RefObject<HTMLCanvasElement>;
-    protected renderer: BabylonBoardRenderer;
+    protected renderer: MelonJSBoardRenderer;
 
     constructor() {
         super({});
         this.canvasRef = React.createRef();
-        this.renderer = new BabylonBoardRenderer(this.canvasRef);
+        this.renderer = new MelonJSBoardRenderer(this.canvasRef);
     }
 
     componentDidMount() {
         this.renderer.init();
-        this.renderer.run();
     }
 
     render() {

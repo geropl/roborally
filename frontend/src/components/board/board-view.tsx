@@ -1,7 +1,7 @@
 import React from "react";
 import { MelonJSBoardRenderer } from "./melonjs-board-renderer";
 
-export class Board extends React.Component<{}, {}> {
+export class BoardView extends React.Component<{}, {}> {
     protected canvasRef: React.RefObject<HTMLCanvasElement>;
     protected renderer: MelonJSBoardRenderer;
 

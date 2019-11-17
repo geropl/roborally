@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package protocol;
+
+message GameState {
+    Board board = 1;
+    repeated Player players = 2;
+}
+
+message Board {
+    repeated Tile tiles = 1;
+    uint32 sizeX = 2;
+    uint32 sizeY = 3;
+}
+
+message Tile {
+    Position position = 1;
+    ETileType type = 2;
+    repeated EDirection walls = 3;
+}
+
+enum ETileType {
+    FREE = 0;
+    NO_TILE = 1;
+}
+
+message Position {
+    uint32 x = 1;
+    uint32 y = 2;
+}
+
+message Player {
+    uint32 id = 1;
+    Robot robot = 2;
+}
+
+message Robot {
+    uint32 id = 1;
+    Position position = 2;
+    EDirection direction = 3;
+    uint32 damage = 4;
+    uint32 life_tokens = 5;
+}
+
+enum EDirection {
+    NORTH = 0;
+    EAST = 1;
+    SOUTH = 2;
+    WEST = 3;
+}

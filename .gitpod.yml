@@ -3,10 +3,15 @@ image:
   context: .gitpod
 
 tasks:
+- name: client-lib
+  command: >
+    gp sync-await "yarn-install";
+    yarn watch
 - name: frontend
   init: >
     yarn install && yarn build;
   command: >
+    gp sync-done "yarn-install";
     cd frontend;
     gatsby develop
 - name: backend

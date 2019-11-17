@@ -10,7 +10,8 @@
     "build": "yarn clean && yarn gen-proto",
     "gen-proto": "mkdir -p lib/proto && ./generate-proto.sh lib/proto",
     "clean": "rm -Rf lib",
-    "purge": "yarn clean && rm -Rf ./node_modules"
+    "purge": "yarn clean && rm -Rf ./node_modules",
+    "watch": "watch 'echo \"building...\" && yarn build' ../protocol"
   },
   "dependencies": {
     "google-protobuf": "^3.8.0-rc.1",
@@ -18,6 +19,7 @@
   },
   "devDependencies": {
     "@types/google-protobuf": "^3.2.7",
-    "ts-protoc-gen": "^0.12.0"
+    "ts-protoc-gen": "^0.12.0",
+    "watch": "^1.0.2"
   }
 }

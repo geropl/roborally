@@ -1,16 +1,16 @@
 import React from "react";
 import { Error } from "grpc-web";
 import * as URL from "url";
-import { HelloRequest, HelloReply } from "backend-ts-client-lib/lib/proto/protocol_pb";
-import { GreeterClient } from "backend-ts-client-lib/lib/proto/ProtocolServiceClientPb";
-import { Board } from "../components/board/board";
+import { GetGameStateRequest, GetGameStateResponse } from "backend-ts-client-lib/lib/proto/protocol_pb";
+import { RoboRallyGameClient } from "backend-ts-client-lib/lib/proto/ProtocolServiceClientPb";
+import { BoardView } from "../components/board/board-view";
 
 interface DashboardState {
     response: string | undefined,
 }
 
 export default class Dashboard extends React.Component<{}, DashboardState> {
-    protected helloService: GreeterClient | undefined;
+    protected client: RoboRallyGameClient | undefined;
 
     constructor() {
         super({});
@@ -22,33 +22,33 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
                 RoboRally!!!
                 <div>
                     <label id="output">{this.state && this.state.response || ""}</label>
-                    <input type="button" value="send" onClick={() => {
-                        const helloRequest = new HelloRequest();
-                        helloRequest.setName("mike");
+                    <input type="button" value="GetGameState" onClick={() => {
+                        const gameStateRequest = new GetGameStateRequest();
 
-                        const helloService = this.getClient();
-                        helloService.sayHello(helloRequest, null, (err: Error, response: HelloReply) => {
+                        const client = this.getClient();
+                        client.getGameState(gameStateRequest, null, (err: Error, response: GetGameStateResponse) => {
                             if (err) {
                                 console.error(err);
                                 return
                             }
-                            this.setState({ response: response.getMessage() });
-                            console.log("received response");
+                            const gameStateStr = response.getState().toString();
+                            this.setState({ response: gameStateStr });
+                            console.log("received GetGameStateResponse");
                         });
-                        console.log("Sent hello request");
+                        console.log("Sent GetGameStateRequest");
                     }} />
-                    <Board />
+                    <BoardView />
                 </div>
             </div>
         );
     }
 
-    protected getClient(): GreeterClient {
-        if (!this.helloService) {
+    protected getClient() {
+        if (!this.client) {
             const connStr = this.getGitpodConnectionString();
-            this.helloService = new GreeterClient(connStr);
+            this.client = new RoboRallyGameClient(connStr);
         }
-        return this.helloService;
+        return this.client;
     }
 
     protected getGitpodConnectionString(): string {

@@ -8,6 +8,8 @@ use protocol::{
     HelloReply, HelloRequest,
 };
 
+mod game;
+
 #[derive(Default)]
 pub struct MyGreeter {}
 

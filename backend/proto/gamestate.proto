@@ -9,8 +9,8 @@ message GameState {
 
 message Board {
     repeated Tile tiles = 1;
-    uint32 sizeX = 2;
-    uint32 sizeY = 3;
+    uint32 size_x = 2;
+    uint32 size_y = 3;
 }
 
 message Tile {

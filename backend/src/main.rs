@@ -3,25 +3,30 @@ use tonic::{transport::Server, Request, Response, Status};
 use std::env;
 
 mod protocol;
-use protocol::{
-    server::{Greeter, GreeterServer},
-    HelloReply, HelloRequest,
-};
+use protocol::server::{ RoboRallyGame, RoboRallyGameServer };
+use protocol::{ GetGameStateRequest, GetGameStateResponse, GameState, Board };
 
 mod game;
 
 #[derive(Default)]
-pub struct MyGreeter {}
+pub struct RoboRallyGameService {}
 
 #[tonic::async_trait]
-impl Greeter for MyGreeter {
-    async fn say_hello( &self, request: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
+impl RoboRallyGame for RoboRallyGameService {
+    async fn get_game_state(&self, request: Request<GetGameStateRequest>) -> Result<Response<GetGameStateResponse>, Status> {
         println!("Got a request: {:?}", request);
 
-        let reply = protocol::HelloReply {
-            message: format!("Hello {}!", request.into_inner().name),
+        let response = GetGameStateResponse {
+            state: Some(GameState {
+                board: Some(Board {
+                    size_x: 0,
+                    size_y: 0,
+                    tiles: vec![],
+                }),
+                players: vec![],
+            }),
         };
-        Ok(Response::new(reply))
+        Ok(Response::new(response))
     }
 }
 
@@ -36,10 +41,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             panic!("Expected arguments: <address>:<port>!")
         }
     };
-    let greeter = MyGreeter::default();
 
+    let service = RoboRallyGameService::default();
     Server::builder()
-        .serve(socket_addr, GreeterServer::new(greeter))
+        .serve(socket_addr, RoboRallyGameServer::new(service))
         .await?;
 
     Ok(())

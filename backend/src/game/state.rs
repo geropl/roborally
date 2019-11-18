@@ -7,7 +7,7 @@ use std::default::Default;
 #[derive(Debug)]
 pub struct State {
     pub board: Rc<Board>,
-    players: Vec<Player>,
+    pub players: Vec<Player>,
 }
 
 impl State {
@@ -78,8 +78,8 @@ pub type RobotID = u32;
 #[builder(default)]
 pub struct Robot {
     pub id: RobotID,
-    pub damage: u16,
-    pub life_tokens: u16,
+    pub damage: u32,
+    pub life_tokens: u32,
     pub position: Position,
     pub direction: EDirection,
 }
@@ -106,19 +106,19 @@ impl Robot {
  */
 #[derive(Debug)]
 pub struct Board {
-    tiles: Vec<Tile>,
-    size_x: usize,
-    size_y: usize,
+    pub tiles: Vec<Tile>,
+    pub size_x: u32,
+    pub size_y: u32,
 }
 
 impl Board {
-    pub fn new_empty_board(size_x: usize, size_y: usize) -> Board {
+    pub fn new_empty_board(size_x: u32, size_y: u32) -> Board {
         let mut board = Board {
             tiles: Vec::with_capacity((size_x * size_y) as usize),
             size_x,
             size_y
         };
-        board.fill_with_tiles(ETileType::FREE);
+        board.fill_with_tiles(ETileType::Free);
         board
     }
 
@@ -126,7 +126,12 @@ impl Board {
         for x in 0..self.size_x {
             for y in 0..self.size_y {
                 let position = Position::new(x, y);
-                self.tiles.push(Tile::new(position, ttype));
+                let tile = TileBuilder::default()
+                    .position(position)
+                    .ttype(ttype)
+                    .walls(vec![])
+                    .build().unwrap();
+                self.tiles.push(tile);
             }
         }
     }
@@ -150,9 +155,9 @@ impl Board {
         true
     }
 
-    fn tile_index(&self, x: usize, y: usize) -> usize {
-        x + (y * self.size_x)
-    }
+    // fn tile_index(&self, x: u32, y: u32) -> usize {
+    //     x + (y * self.size_x)
+    // }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -197,44 +202,37 @@ impl Default for EDirection {
 pub struct Tile {
     pub position: Position,
     pub ttype: ETileType,
-}
-
-impl Tile {
-    pub fn new(position: Position, ttype: ETileType) -> Tile {
-        Tile {
-            position,
-            ttype
-        }
-    }
+    pub walls: Vec<EDirection>,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum ETileType {
-    FREE,
+    Free,
+    NoTile,
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct Position {
-    pub x: usize,
-    pub y: usize,
+    pub x: u32,
+    pub y: u32,
 }
 
 impl Position {
-    pub fn new(x: usize, y: usize) -> Position {
+    pub fn new(x: u32, y: u32) -> Position {
         Position {
             x,
             y,
         }
     }
 
-    pub fn set_x(&self, x: usize) -> Position {
+    pub fn set_x(&self, x: u32) -> Position {
         Position {
             x,
             y: self.y,
         }
     }
 
-    pub fn set_y(&self, y: usize) -> Position {
+    pub fn set_y(&self, y: u32) -> Position {
         Position {
             x: self.x,
             y,

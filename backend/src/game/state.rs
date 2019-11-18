@@ -7,14 +7,14 @@ use std::default::Default;
 #[derive(Debug)]
 pub struct State {
     pub board: Rc<Board>,
-    players: Vec<Box<Player>>,
+    players: Vec<Player>,
 }
 
 impl State {
     pub fn new(board: Board, players: Vec<Player>) -> State {
         State {
             board: Rc::new(board),
-            players: players.into_iter().map(|p| Box::from(p)).collect(),
+            players: players.into_iter().collect(),
         }
     }
 
@@ -35,12 +35,12 @@ impl State {
             .position(|p| p.robot.id == new_robot.id)
             .unwrap();  // TODO logic error
 
-        let mut new_players = Vec::from(self.players.clone());
+        let mut new_players = self.players.clone();
         let old_player = new_players.remove(old_player_index);
-        new_players.push(Box::from(Player {
+        new_players.push(Player {
             robot: new_robot,
-            ..*old_player
-        }));
+            ..old_player
+        });
 
         State {
             players: new_players,
@@ -131,7 +131,7 @@ impl Board {
         }
     }
 
-    pub fn get_neighbor_in(&self, pos: &Position, direction: &EDirection) -> Position {
+    pub fn get_neighbor_in(&self, pos: &Position, direction: EDirection) -> Position {
         match direction {
             EDirection::NORTH => pos.set_y(pos.y - 1),
             EDirection::SOUTH => pos.set_y(pos.y + 1),
@@ -164,25 +164,26 @@ pub enum EDirection {
 }
 
 impl EDirection {
-    const DIRECTIONS: [EDirection;  4] = [EDirection::NORTH, EDirection::EAST, EDirection::SOUTH, EDirection::WEST];
 
-    pub fn turn_left(&self) -> EDirection {
+    pub fn turn_left(self) -> EDirection {
         self.turn(-1)
     }
 
-    pub fn turn_right(&self) -> EDirection {
+    pub fn turn_right(self) -> EDirection {
         self.turn(1)
     }
 
-    pub fn turn_around(&self) -> EDirection {
+    pub fn turn_around(self) -> EDirection {
         self.turn(2)
     }
 
-    fn turn(&self, offset: i8) -> EDirection {
-        let index = EDirection::DIRECTIONS.iter().position(|d| d == self).unwrap();
-        let max = EDirection::DIRECTIONS.len() as i8;
+    fn turn(self, offset: i8) -> EDirection {
+        static DIRECTIONS: [EDirection;  4] = [EDirection::NORTH, EDirection::EAST, EDirection::SOUTH, EDirection::WEST];
+        
+        let index = DIRECTIONS.iter().position(|d| *d == self).unwrap();
+        let max = DIRECTIONS.len() as i8;
         let new_index = (index as i8 + offset + max) % max;
-        EDirection::DIRECTIONS[new_index as usize]
+        DIRECTIONS[new_index as usize]
     }
 }
 

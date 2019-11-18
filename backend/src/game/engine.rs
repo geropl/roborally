@@ -1,3 +1,5 @@
+#![deny(clippy::single_match)]
+
 use derive_builder::Builder;
 
 use std::slice::Iter;
@@ -22,7 +24,7 @@ impl Engine {
         let move_inputs = inputs.get_sorted_by_priority();
         for move_input in move_inputs {
             let tmove = move_input.mmove.tmove;
-            state = self.perform_move(state, move_input.player_id, &tmove);
+            state = self.perform_move(state, move_input.player_id, tmove);
         }
 
         // 2. Board elements move:
@@ -37,7 +39,7 @@ impl Engine {
         state
     }
 
-    fn perform_move(&self, state: Box<State>, player_id: PlayerID, tmove: &Box<dyn TMove>) -> Box<State> {
+    fn perform_move(&self, state: Box<State>, player_id: PlayerID, tmove: Box<dyn TMove>) -> Box<State> {
         let mut state = state;
         for smove in tmove.iter() {
             state = self.perform_simple_move(state, player_id, smove);
@@ -48,17 +50,17 @@ impl Engine {
     fn perform_simple_move(&self, state: Box<State>, player_id: PlayerID, smove: &ESimpleMove) -> Box<State> {
         if smove.is_turn() {
             let robot = state.get_robot_for(player_id).unwrap(); // TODO Data/logic error type!
-            let new_direction = Engine::map_move_to_direction_change(smove, &robot.direction);
+            let new_direction = Engine::map_move_to_direction_change(smove, robot.direction);
             let new_robot = robot.set_direction(new_direction);
-            return Box::from(state.update_robot(new_robot));
+            Box::from(state.update_robot(new_robot))
         } else {
             let robot = state.get_robot_for(player_id).unwrap(); // TODO Data/logic error type!
-            let direction = Engine::map_move_to_direction_change(smove, &robot.direction);
-            return self.try_to_move_robot(state, player_id, &direction);
+            let direction = Engine::map_move_to_direction_change(smove, robot.direction);
+            self.try_to_move_robot(state, player_id, direction)
         }
     }
 
-    fn try_to_move_robot(&self, state: Box<State>, moving_robot_id: RobotID, direction: &EDirection) -> Box<State> {
+    fn try_to_move_robot(&self, state: Box<State>, moving_robot_id: RobotID, direction: EDirection) -> Box<State> {
         let mut state = state;
         let board = state.board.clone();
 
@@ -108,10 +110,10 @@ impl Engine {
             state = Box::from(state.update_robot(new_robot));
             push_stack.pop();
         }
-        return state;
+        state
     }
 
-    fn map_move_to_direction_change(smove: &ESimpleMove, dir: &EDirection) -> EDirection {
+    fn map_move_to_direction_change(smove: &ESimpleMove, dir: EDirection) -> EDirection {
         match smove {
             // Turn
             ESimpleMove::TurnLeft => dir.turn_left(),
@@ -122,7 +124,7 @@ impl Engine {
             ESimpleMove::Backward => dir.turn_around(),
             ESimpleMove::StepLeft => dir.turn_left(),
             ESimpleMove::StepRight => dir.turn_right(),
-            ESimpleMove::Forward => *dir,
+            ESimpleMove::Forward => dir,
         }
     }
 }
@@ -187,7 +189,7 @@ impl SimpleMove {
     }
 
     pub fn single(mmove: ESimpleMove) -> Box<SimpleMove> {
-        Box::from(SimpleMove::new(&[mmove]))
+        SimpleMove::new(&[mmove])
     }
 }
 
@@ -251,11 +253,11 @@ impl MoveInputs {
     }
 }
 
-pub type RoundInputs = Vec<Box<RoundInput>>;
+pub type RoundInputs = Vec<RoundInput>;
 pub struct RoundInput {
     pub player_id: PlayerID,
     pub power_down: bool,
-    pub cards: Vec<Box<MoveCard>>,
+    pub cards: Vec<MoveCard>,
 }
 
 #[cfg(test)]

@@ -5,6 +5,7 @@ image:
 tasks:
 - name: client-lib
   command: >
+    cd backend-ts-client-lib;
     gp sync-await "yarn-install";
     yarn watch
 - name: frontend

@@ -260,6 +260,29 @@ pub struct RoundInput {
     pub cards: Vec<MoveCard>,
 }
 
+// #[derive(Debug, Builder)]
+// pub struct PosDirMove {
+//     pub position: Position,
+//     pub direction: EDirection,
+//     pub moves: Vec<ESimpleMove>,
+// }
+
+// pub fn create_test_state(pdm1: PosDirMove, pdm2: PosDirMove) -> State {
+//     let robot1 = RobotBuilder::default()
+//         .id(0)
+//         .position(Position::new(2, 2))
+//         .direction(EDirection::NORTH)
+//         .build().unwrap();
+//     let player1 = Player::new(0, robot1);
+
+//     let robot2 = RobotBuilder::default()
+//         .id(1)
+//         .position(Position::new(4, 4))
+//         .direction(EDirection::EAST)
+//         .build().unwrap();
+//     let player2 = Player::new(1, robot2);
+// }
+
 #[cfg(test)]
 mod test {
     use crate::game::state::*;

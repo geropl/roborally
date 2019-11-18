@@ -1,8 +1,8 @@
 import React from "react";
 import { Error } from "grpc-web";
 import * as URL from "url";
-import { GetGameStateRequest, GetGameStateResponse } from "backend-ts-client-lib/lib/proto/protocol_pb";
-import { RoboRallyGameClient } from "backend-ts-client-lib/lib/proto/ProtocolServiceClientPb";
+import { GetGameStateRequest, GetGameStateResponse } from "ts-client/lib/protocol_pb";
+import { RoboRallyGameClient } from "ts-client/lib/ProtocolServiceClientPb";
 import { BoardView } from "../components/board/board-view";
 
 interface DashboardState {
@@ -29,10 +29,15 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
                         client.getGameState(gameStateRequest, null, (err: Error, response: GetGameStateResponse) => {
                             if (err) {
                                 console.error(err);
-                                return
+                                return;
                             }
-                            const gameStateStr = response.getState().toString();
-                            this.setState({ response: gameStateStr });
+                            const gameState = response.getState();
+                            if (!gameState) {
+                                console.error("No state returned!");
+                                return;
+                            }
+                            const obj = gameState.toObject();
+                            this.setState({ response: JSON.stringify(obj) });
                             console.log("received GetGameStateResponse");
                         });
                         console.log("Sent GetGameStateRequest");

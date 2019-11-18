@@ -3,7 +3,7 @@ use std::fs;
 use std::ffi::OsStr;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let proto_directory = PathBuf::from("../protocol");
+    let proto_directory = PathBuf::from("./proto");
     let mut proto_files: Vec<PathBuf> = vec![];
     for entry in fs::read_dir(&proto_directory)? {
         let entry = entry?;

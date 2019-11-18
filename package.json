@@ -14,7 +14,7 @@
     },
     "workspaces": {
         "packages": [
-            "backend-ts-client-lib",
+            "backend/ts-client",
             "frontend"
         ]
     }

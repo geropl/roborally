@@ -6,4 +6,4 @@ frontend/public/**
 backend/target/**
 target/**
 
-backend-ts-client-lib/lib/**
+backend/ts-client/lib/**

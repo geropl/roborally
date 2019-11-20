@@ -1,7 +1,7 @@
 import React from "react";
 import { Error } from "grpc-web";
 import * as URL from "url";
-import { GetGameStateRequest, GetGameStateResponse } from "ts-client/lib/protocol_pb";
+import { GetGameStateRequest, GetGameStateResponse, StartGameRequest, StartGameResponse } from "ts-client/lib/protocol_pb";
 import { RoboRallyGameClient } from "ts-client/lib/ProtocolServiceClientPb";
 import { BoardView } from "../components/board/board-view";
 
@@ -21,31 +21,55 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
             <div>
                 RoboRally!!!
                 <div>
-                    <label id="output">{this.state && this.state.response || ""}</label>
-                    <input type="button" value="GetGameState" onClick={() => {
-                        const gameStateRequest = new GetGameStateRequest();
-
-                        const client = this.getClient();
-                        client.getGameState(gameStateRequest, null, (err: Error, response: GetGameStateResponse) => {
-                            if (err) {
-                                console.error(err);
-                                return;
-                            }
-                            const gameState = response.getState();
-                            if (!gameState) {
-                                console.error("No state returned!");
-                                return;
-                            }
-                            const obj = gameState.toObject();
-                            this.setState({ response: JSON.stringify(obj) });
-                            console.log("received GetGameStateResponse");
-                        });
-                        console.log("Sent GetGameStateRequest");
-                    }} />
                     <BoardView />
+                    <input type="button" value="StartGame" onClick={() => this.requestStartGame() } />
+                    <input type="button" value="GetGameState" onClick={() => this.requestGameState() } />
+                    <label id="output">{this.state && this.state.response || ""}</label>
                 </div>
             </div>
         );
+    }
+
+    protected async requestStartGame() {
+        const request = new StartGameRequest();
+
+        const client = this.getClient();
+        await new Promise<StartGameResponse>((resolve, reject) => {
+            client.startGame(request, null, (err: Error, response: StartGameResponse) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve(response);
+            });
+            console.log("Sent StartGameRequest");
+        });
+        console.log("Received StartGameResponse");
+    }
+
+    protected async requestGameState() {
+        const gameStateRequest = new GetGameStateRequest();
+
+        const client = this.getClient();
+        const response = await new Promise<GetGameStateResponse>((resolve, reject) => {
+            client.getGameState(gameStateRequest, null, (err: Error, response: GetGameStateResponse) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve(response);
+            });
+            console.log("Sent GetGameStateRequest");
+        });
+
+        const gameState = response.getState();
+        if (!gameState) {
+            console.error("No state returned!");
+            return;
+        }
+        const obj = gameState.toObject();
+        this.setState({ response: JSON.stringify(obj) });
+        console.log("received GetGameStateResponse");
     }
 
     protected getClient() {

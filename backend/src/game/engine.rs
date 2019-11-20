@@ -1,6 +1,7 @@
 #![deny(clippy::single_match)]
 
 use derive_builder::Builder;
+use failure::Fail;
 
 use std::slice::Iter;
 use std::fmt;
@@ -13,18 +14,30 @@ use crate::game::state::{
     EDirection,
 };
 
+#[derive(Debug, Fail)]
+pub enum EngineError {
+    #[fail(display = "Robot not found for player with id {}", player_id)]
+    RobotNotFound {
+        player_id: PlayerID,
+    },
+}
+
 #[derive(Default)]
-struct Engine {}
+pub struct Engine {}
 
 impl Engine {
-    fn run_register_phase(&self, state: Box<State>, inputs: &MoveInputs) -> Box<State> {
+    pub fn new() -> Engine {
+        Engine::default()
+    }
+
+    pub fn run_register_phase(&self, state: Box<State>, inputs: &MoveInputs) -> Result<Box<State>, EngineError> {
         // Phase:
         // 1. Robots move, in order of Priority
         let mut state = state;
         let move_inputs = inputs.get_sorted_by_priority();
         for move_input in move_inputs {
             let tmove = move_input.mmove.tmove;
-            state = self.perform_move(state, move_input.player_id, tmove);
+            state = self.perform_move(state, move_input.player_id, tmove)?;
         }
 
         // 2. Board elements move:
@@ -36,27 +49,27 @@ impl Engine {
         // 3. Board and robot lasers fire
         // 4. Robots touch flags and place archive markers
 
-        state
+        Ok(state)
     }
 
-    fn perform_move(&self, state: Box<State>, player_id: PlayerID, tmove: Box<dyn TMove>) -> Box<State> {
+    fn perform_move(&self, state: Box<State>, player_id: PlayerID, tmove: Box<dyn TMove>) -> Result<Box<State>, EngineError> {
         let mut state = state;
         for smove in tmove.iter() {
-            state = self.perform_simple_move(state, player_id, smove);
+            state = self.perform_simple_move(state, player_id, smove)?;
         }
-        state
+        Ok(state)
     }
 
-    fn perform_simple_move(&self, state: Box<State>, player_id: PlayerID, smove: &ESimpleMove) -> Box<State> {
+    fn perform_simple_move(&self, state: Box<State>, player_id: PlayerID, smove: &ESimpleMove) -> Result<Box<State>, EngineError> {
         if smove.is_turn() {
-            let robot = state.get_robot_for(player_id).unwrap(); // TODO Data/logic error type!
+            let robot = state.get_robot_for(player_id).ok_or(EngineError::RobotNotFound{ player_id })?;
             let new_direction = Engine::map_move_to_direction_change(smove, robot.direction);
             let new_robot = robot.set_direction(new_direction);
-            Box::from(state.update_robot(new_robot))
+            Ok(Box::from(state.update_robot(new_robot)))
         } else {
-            let robot = state.get_robot_for(player_id).unwrap(); // TODO Data/logic error type!
+            let robot = state.get_robot_for(player_id).ok_or(EngineError::RobotNotFound{ player_id })?;
             let direction = Engine::map_move_to_direction_change(smove, robot.direction);
-            self.try_to_move_robot(state, player_id, direction)
+            Ok(self.try_to_move_robot(state, player_id, direction))
         }
     }
 
@@ -289,7 +302,7 @@ mod test {
     use crate::game::engine::*;
 
     #[test]
-    fn simple_move() {
+    fn simple_move() -> Result<(), Box<EngineError>> {
         // State
         let robot1 = RobotBuilder::default()
             .id(0)
@@ -328,7 +341,7 @@ mod test {
 
         
         let engine = Engine::default();
-        let actual_state = engine.run_register_phase(state, &inputs);
+        let actual_state = engine.run_register_phase(state, &inputs)?;
         println!("{:?}", actual_state);
 
         let actual_robot1 = actual_state.get_robot_for(0).unwrap();
@@ -337,5 +350,7 @@ mod test {
         assert_eq!(actual_robot1.position, Position { x: 2, y: 1 }, "robot1 position");
         assert_eq!(actual_robot2.direction, EDirection::NORTH, "robot2 direction");
         assert_eq!(actual_robot2.position, Position { x: 4, y: 3 }, "robot2 position");
+
+        Ok(())
     }
 }

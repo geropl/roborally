@@ -1,15 +1,20 @@
 syntax = "proto3";
 
-// option java_multiple_files = true;
-// option java_package = "io.grpc.examples.helloworld";
-// option java_outer_classname = "HelloWorldProto";
-
 package protocol;
 
 import "gamestate.proto";
 
 service RoboRallyGame {
-  rpc GetGameState (GetGameStateRequest) returns (GetGameStateResponse) {}
+    rpc StartGame (StartGameRequest) returns (StartGameResponse) {}
+    rpc GetGameState (GetGameStateRequest) returns (GetGameStateResponse) {}
+}
+
+message StartGameRequest {
+
+}
+
+message StartGameResponse {
+    
 }
 
 message GetGameStateRequest {

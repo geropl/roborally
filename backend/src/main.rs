@@ -1,34 +1,14 @@
-use tonic::{transport::Server, Request, Response, Status};
+mod protocol;
+mod service;
+mod game;
+
+use tonic::transport::Server;
 
 use std::env;
 
-mod protocol;
-use protocol::server::{ RoboRallyGame, RoboRallyGameServer };
-use protocol::{ GetGameStateRequest, GetGameStateResponse, GameState, Board };
+use protocol::server::RoboRallyGameServer;
 
-mod game;
-
-#[derive(Default)]
-pub struct RoboRallyGameService {}
-
-#[tonic::async_trait]
-impl RoboRallyGame for RoboRallyGameService {
-    async fn get_game_state(&self, request: Request<GetGameStateRequest>) -> Result<Response<GetGameStateResponse>, Status> {
-        println!("Got a request: {:?}", request);
-
-        let response = GetGameStateResponse {
-            state: Some(GameState {
-                board: Some(Board {
-                    size_x: 0,
-                    size_y: 0,
-                    tiles: vec![],
-                }),
-                players: vec![],
-            }),
-        };
-        Ok(Response::new(response))
-    }
-}
+use service::RoboRallyGameService;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

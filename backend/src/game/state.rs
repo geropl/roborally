@@ -1,19 +1,21 @@
+#![allow(clippy::trivially_copy_pass_by_ref)]
+
 use derive_builder::Builder;
 
 use std::clone::Clone;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::default::Default;
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct State {
-    pub board: Rc<Board>,
+    pub board: Arc<Board>,
     pub players: Vec<Player>,
 }
 
 impl State {
     pub fn new(board: Board, players: Vec<Player>) -> State {
         State {
-            board: Rc::new(board),
+            board: Arc::new(board),
             players: players.into_iter().collect(),
         }
     }
@@ -104,7 +106,7 @@ impl Robot {
  * Spans a rectangular board constisting of tiles.
  * Not every tile is playable, [0, 0] is the North-West/upper-left corner
  */
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Board {
     pub tiles: Vec<Tile>,
     pub size_x: u32,
@@ -145,12 +147,12 @@ impl Board {
         }
     }
 
-    pub fn is_wall_between(&self, a: &Position, b: &Position) -> bool {
+    pub fn is_wall_between(&self, _a: &Position, _b: &Position) -> bool {
         // TODO implement
         false
     }
 
-    pub fn is_on_board(&self, pos: &Position) -> bool {
+    pub fn is_on_board(&self, _pos: &Position) -> bool {
         // TODO implement
         true
     }

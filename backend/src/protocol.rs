@@ -2,6 +2,20 @@ use crate::game::state;
 
 tonic::include_proto!("protocol");
 
+impl From<&Box<state::State>> for GameState {
+    fn from(state: &Box<state::State>) -> GameState {
+        use std::borrow::Borrow;
+
+        let players: Vec<Player> = state.players.iter()
+            .map(Player::from)
+            .collect();
+        GameState {
+            board: Some(Board::from(state.board.borrow())),
+            players,
+        }
+    }
+}
+
 impl From<&state::State> for GameState {
     fn from(state: &state::State) -> GameState {
         use std::borrow::Borrow;

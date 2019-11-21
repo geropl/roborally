@@ -102,6 +102,12 @@ impl Robot {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EConnection {
+    Free(Position),
+    Walled,
+}
+
 /**
  * Spans a rectangular board constisting of tiles.
  * Not every tile is playable, [0, 0] is the North-West/upper-left corner
@@ -138,28 +144,44 @@ impl Board {
         }
     }
 
-    pub fn get_neighbor_in(&self, pos: &Position, direction: EDirection) -> Position {
-        match direction {
-            EDirection::NORTH => pos.set_y(pos.y - 1),
-            EDirection::SOUTH => pos.set_y(pos.y + 1),
-            EDirection::WEST => pos.set_x(pos.x - 1),
-            EDirection::EAST => pos.set_x(pos.x + 1),
+    pub fn get_neighbor_in(&self, pos: &Position, direction: EDirection) -> Option<EConnection> {
+        let new_pos = match direction {
+            EDirection::NORTH =>
+                Board::ensure_on_board(pos.y.overflowing_sub(1), self.size_y)
+                    .map(|n| pos.set_y(n)),
+            EDirection::SOUTH => 
+                Board::ensure_on_board(pos.y.overflowing_add(1), self.size_y)
+                    .map(|n| pos.set_y(n)),
+            EDirection::WEST => 
+                Board::ensure_on_board(pos.x.overflowing_sub(1), self.size_x)
+                    .map(|n| pos.set_x(n)),
+            EDirection::EAST => 
+                Board::ensure_on_board(pos.x.overflowing_add(1), self.size_x)
+                    .map(|n| pos.set_x(n)),
+        }?;
+
+        let old_tile = &self.tiles[self.tile_index(pos)];
+        let new_tile = &self.tiles[self.tile_index(&new_pos)];
+        
+        if old_tile.walls.contains(&direction) || new_tile.walls.contains(&direction.opposite()) {
+            return Some(EConnection::Walled);
         }
+        Some(EConnection::Free(new_pos))
     }
 
-    pub fn is_wall_between(&self, _a: &Position, _b: &Position) -> bool {
-        // TODO implement
-        false
+    fn ensure_on_board((new_val, overflow): (u32, bool), max: u32) -> Option<u32> {
+        if overflow {
+            return None;
+        }
+        if new_val >= max {
+            return None;
+        }
+        Some(new_val)
     }
 
-    pub fn is_on_board(&self, _pos: &Position) -> bool {
-        // TODO implement
-        true
+    fn tile_index(&self, pos: &Position) -> usize {
+        (pos.x + (pos.y * self.size_x)) as usize
     }
-
-    // fn tile_index(&self, x: u32, y: u32) -> usize {
-    //     x + (y * self.size_x)
-    // }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -182,6 +204,10 @@ impl EDirection {
 
     pub fn turn_around(self) -> EDirection {
         self.turn(2)
+    }
+
+    pub fn opposite(self) -> EDirection {
+        self.turn_around()
     }
 
     fn turn(self, offset: i8) -> EDirection {

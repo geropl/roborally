@@ -12,6 +12,8 @@ use crate::game::state::{
     PlayerID,
     RobotID,
     EDirection,
+    EConnection,
+    Position,
 };
 
 #[derive(Debug, Fail)]
@@ -20,6 +22,15 @@ pub enum EngineError {
     RobotNotFound {
         player_id: PlayerID,
     },
+    #[fail(display = "Robot with id {} not found", robot_id)]
+    RobotNotFoundID {
+        robot_id: RobotID,
+    },
+    #[fail(display = "No position after {:?} {:?}", pos, dir)]
+    PositionNotOnBoard {
+        pos: Position,
+        dir: EDirection,
+    }
 }
 
 #[derive(Default)]
@@ -69,11 +80,11 @@ impl Engine {
         } else {
             let robot = state.get_robot_for(player_id).ok_or(EngineError::RobotNotFound{ player_id })?;
             let direction = Engine::map_move_to_direction_change(smove, robot.direction);
-            Ok(self.try_to_move_robot(state, player_id, direction))
+            self.try_to_move_robot(state, player_id, direction)
         }
     }
 
-    fn try_to_move_robot(&self, state: Box<State>, moving_robot_id: RobotID, direction: EDirection) -> Box<State> {
+    fn try_to_move_robot(&self, state: Box<State>, moving_robot_id: RobotID, direction: EDirection) -> Result<Box<State>, EngineError> {
         let mut state = state;
         let board = state.board.clone();
 
@@ -86,17 +97,18 @@ impl Engine {
             let robot_id = push_stack.last().unwrap(); // TODO logic error!
             let robot = state.get_robot(*robot_id).unwrap();
             let from = &robot.position;
-            let to = board.get_neighbor_in(from, direction);
 
-            if board.is_wall_between(from, &to) {
-                // No further chaining or movement possible: we're done here
-                return state;
-            }
-
-            if !board.is_on_board(&to) {
-                // No further chaining possible: Start to move...
-                break;
-            }
+            // Handle different neighbor connection
+            let to = match board.get_neighbor_in(from, direction) {
+                None => {
+                    return Err(EngineError::PositionNotOnBoard { pos: *from, dir: direction })
+                },
+                Some(EConnection::Walled) => {
+                    // No further chaining or movement possible: we're done here
+                    return Ok(state)
+                },
+                Some(EConnection::Free(to)) => to,
+            };
 
             // Watch out for the next robot for our chain
             let robot_in_my_way = state.find_robot_at(&to);
@@ -112,18 +124,27 @@ impl Engine {
 
         // 2. Try to actually move
         while !push_stack.is_empty() {
-            let robot_id = push_stack.last().unwrap(); // TODO logic error
-            let robot = state.get_robot(*robot_id).unwrap();
-            let to = board.get_neighbor_in(&robot.position, direction);
-
-            // TODO Validate target Position: Should the field to this? Seems reasonable...
+            let robot_id = push_stack.last().unwrap();
+            let robot = state.get_robot(*robot_id)
+                .ok_or(EngineError::RobotNotFoundID{ robot_id: *robot_id })?;
+            
+            let to = match board.get_neighbor_in(&robot.position, direction) {
+                None => {
+                    return Err(EngineError::PositionNotOnBoard { pos: robot.position, dir: direction })
+                },
+                Some(EConnection::Walled) => {
+                    // Cannot move
+                    continue;
+                },
+                Some(EConnection::Free(to)) => to,
+            };
 
             // Actual move TODO Should field do this, too?
             let new_robot = robot.set_position(to);
             state = Box::from(state.update_robot(new_robot));
             push_stack.pop();
         }
-        state
+        Ok(state)
     }
 
     fn map_move_to_direction_change(smove: &ESimpleMove, dir: EDirection) -> EDirection {
@@ -266,12 +287,12 @@ impl MoveInputs {
     }
 }
 
-pub type RoundInputs = Vec<RoundInput>;
-pub struct RoundInput {
-    pub player_id: PlayerID,
-    pub power_down: bool,
-    pub cards: Vec<MoveCard>,
-}
+// pub type RoundInputs = Vec<RoundInput>;
+// pub struct RoundInput {
+//     pub player_id: PlayerID,
+//     pub power_down: bool,
+//     pub cards: Vec<MoveCard>,
+// }
 
 // #[derive(Debug, Builder)]
 // pub struct PosDirMove {
@@ -301,8 +322,7 @@ mod test {
     use crate::game::state::*;
     use crate::game::engine::*;
 
-    #[test]
-    fn simple_move() -> Result<(), Box<EngineError>> {
+    fn create_state() -> (Board, Vec<Player>, MoveInputs) {
         // State
         let robot1 = RobotBuilder::default()
             .id(0)
@@ -321,28 +341,26 @@ mod test {
         // Inputs
         let move_forward = SimpleMove::single(ESimpleMove::Forward);
         let move_card1 = MoveCard::new(1, move_forward);
-        let move_input1 = MoveInputBuilder::default()
-            .player_id(player1.id)
-            .mmove(move_card1)
-            .build().unwrap();
+        let move_input1 = MoveInput::new(player1.id, move_card1);
 
         let move_left_forward = SimpleMove::new(&[ESimpleMove::TurnLeft, ESimpleMove::Forward]);
         let move_card2 = MoveCard::new(2, move_left_forward);
-        let move_input2 = MoveInputBuilder::default()
-            .player_id(player2.id)
-            .mmove(move_card2)
-            .build().unwrap();
+        let move_input2 = MoveInput::new(player2.id, move_card2);
         
         let ins = vec![move_input1, move_input2];
         let inputs = MoveInputs::from(ins.as_slice());
 
         let board = Board::new_empty_board(5, 5);
-        let state = Box::from(State::new(board, vec![player1, player2]));
+        (board, vec![player1, player2], inputs)
+    }
 
+    #[test]
+    fn test_simple_move() -> Result<(), Box<EngineError>> {
+        let (board, players, inputs) = create_state();
+        let state = Box::from(State::new(board, players));
         
         let engine = Engine::default();
         let actual_state = engine.run_register_phase(state, &inputs)?;
-        println!("{:?}", actual_state);
 
         let actual_robot1 = actual_state.get_robot_for(0).unwrap();
         let actual_robot2 = actual_state.get_robot_for(1).unwrap();
@@ -350,6 +368,83 @@ mod test {
         assert_eq!(actual_robot1.position, Position { x: 2, y: 1 }, "robot1 position");
         assert_eq!(actual_robot2.direction, EDirection::NORTH, "robot2 direction");
         assert_eq!(actual_robot2.position, Position { x: 4, y: 3 }, "robot2 position");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_wall_blocks() -> Result<(), Box<EngineError>> {
+        // Board
+        let board = Board {
+            tiles: vec![
+                Tile {
+                    position: Position { x: 0, y: 0 },
+                    ttype: ETileType::Free,
+                    walls: vec![EDirection::SOUTH, EDirection::EAST],
+                },
+                Tile {
+                    position: Position { x: 1, y: 0 },
+                    ttype: ETileType::Free,
+                    walls: vec![],
+                },
+                Tile {
+                    position: Position { x: 0, y: 1 },
+                    ttype: ETileType::Free,
+                    walls: vec![],
+                },
+                Tile {
+                    position: Position { x: 1, y: 1 },
+                    ttype: ETileType::Free,
+                    walls: vec![],
+                },
+            ],
+            size_x: 2,
+            size_y: 2,
+        };
+
+        // Players + Robots
+        let player_id1: u32 = 0;
+        let robot1_pos = Position::new(0, 1);
+        let robot1 = RobotBuilder::default()
+            .id(0)
+            .position(robot1_pos.clone())
+            .direction(EDirection::NORTH)
+            .build().unwrap();
+        let player1 = Player::new(player_id1, robot1);
+
+        let player_id2: u32 = 1;
+        let robot2_pos = Position::new(1, 0);
+        let robot2 = RobotBuilder::default()
+            .id(1)
+            .position(robot2_pos)
+            .direction(EDirection::WEST)
+            .build().unwrap();
+        let player2 = Player::new(player_id2, robot2);
+        let players = vec![player1, player2];
+
+        // Inputs
+        let move_forward = SimpleMove::single(ESimpleMove::Forward);
+        let move_card1 = MoveCard::new(1, move_forward.clone());
+        let move_input1 = MoveInput::new(player_id1, move_card1);
+
+        let move_card2 = MoveCard::new(2, move_forward);
+        let move_input2 = MoveInput::new(player_id2, move_card2);
+
+        let ins = vec![move_input1, move_input2];
+        let inputs = MoveInputs::from(ins.as_slice());
+
+        // State
+        let state = Box::from(State::new(board, players));
+        
+        let engine = Engine::default();
+        let actual_state = engine.run_register_phase(state, &inputs)?;
+
+        let actual_robot1 = actual_state.get_robot_for(0).unwrap();
+        let actual_robot2 = actual_state.get_robot_for(1).unwrap();
+        assert_eq!(actual_robot1.direction, EDirection::NORTH, "robot1 direction");
+        assert_eq!(actual_robot1.position, robot1_pos, "robot1 position");
+        assert_eq!(actual_robot2.direction, EDirection::WEST, "robot2 direction");
+        assert_eq!(actual_robot2.position, robot2_pos, "robot2 position");
 
         Ok(())
     }

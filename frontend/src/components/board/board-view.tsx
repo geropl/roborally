@@ -1,14 +1,14 @@
 import React from "react";
-import { MelonJSBoardRenderer } from "./melonjs-board-renderer";
+import { PhaserBoardRenderer } from "./phaser-board-renderer";
 
 export class BoardView extends React.Component<{}, {}> {
-    protected canvasRef: React.RefObject<HTMLCanvasElement>;
-    protected renderer: MelonJSBoardRenderer;
+    protected canvasRef: React.RefObject<HTMLDivElement>;
+    protected renderer: PhaserBoardRenderer;
 
     constructor() {
         super({});
         this.canvasRef = React.createRef();
-        this.renderer = new MelonJSBoardRenderer(this.canvasRef);
+        this.renderer = new PhaserBoardRenderer(this.canvasRef);
     }
 
     componentDidMount() {
@@ -18,9 +18,7 @@ export class BoardView extends React.Component<{}, {}> {
     render() {
         return (
             <div>
-                <canvas id="canvas" ref={this.canvasRef} width={800} height={600} style={{
-                    backgroundColor: '#121212',
-                }}/>
+                <div id="canvas" ref={this.canvasRef}></div>
             </div>
         );
     }

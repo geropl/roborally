@@ -120,6 +120,8 @@ class Conveyor extends Overlay {
         if ((this.output + 2) % 4 == this.input) return false;
         return true;
     }
+
+    
     isStraight(): boolean {
         if (!this.isTriple() && !this.isCurve())
             return true;

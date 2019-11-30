@@ -3,10 +3,12 @@ syntax = "proto3";
 package protocol;
 
 import "gamestate.proto";
+import "inputs.proto";
 
 service RoboRallyGame {
     rpc StartGame (StartGameRequest) returns (StartGameResponse) {}
     rpc GetGameState (GetGameStateRequest) returns (GetGameStateResponse) {}
+    rpc SetRoundInput (SetRoundInputRequest) returns (SetRoundInputResponse) {}
 }
 
 message StartGameRequest {
@@ -22,5 +24,13 @@ message GetGameStateRequest {
 }
 
 message GetGameStateResponse {
+    GameState state = 1;
+}
+
+message SetRoundInputRequest {
+    PlayerInput player_input = 1;
+}
+
+message SetRoundInputResponse {
     GameState state = 1;
 }

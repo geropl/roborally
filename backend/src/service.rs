@@ -1,12 +1,14 @@
 use tonic::{ Request, Response, Status, Code };
+use failure::Error;
 
 use std::sync::{ Arc, Mutex };
 
 use crate::protocol::server::RoboRallyGame;
-use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState };
+use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetRoundInputRequest, SetRoundInputResponse };
 
 use crate::game::state::{ State, Board, Player, RobotBuilder, Position, EDirection };
-use crate::game::engine::{ Engine, SimpleMove, ESimpleMove, MoveCard, MoveInputBuilder, MoveInputs };
+use crate::game::engine::move_engine::{ Engine };
+use crate::game::engine::move_inputs::{ MoveInput, MoveInputs };
 
 #[derive(Default)]
 pub struct RoboRallyGameService {
@@ -23,44 +25,46 @@ impl RoboRallyGame for RoboRallyGameService {
         Ok(Response::new(response))
     }
 
-    async fn get_game_state(&self, request: Request<GetGameStateRequest>) -> Result<Response<GetGameStateResponse>, Status> {
-        println!("Got a request: {:?}", request);
+    async fn set_round_input(&self, request: Request<SetRoundInputRequest>) -> Result<Response<SetRoundInputResponse>, Status> {
+        let game_state = match self.do_set_input(request.into_inner()) {
+            Err(err) => {
+                println!("Error: {}", err);
+                return Err(Status::new(Code::Internal, format!("{}", err)))
+            },
+            Ok(s) => s,
+        };
+
+        let response = SetRoundInputResponse{
+            state: Some(game_state),
+        };
+        Ok(Response::new(response))
+    }
+
+    async fn get_game_state(&self, _request: Request<GetGameStateRequest>) -> Result<Response<GetGameStateResponse>, Status> {
+        let state = self.state.lock().unwrap();
+        let response = GetGameStateResponse {
+            state: Some(GameState::from(&*state)),
+        };
+        Ok(Response::new(response))
+    }
+}
+
+impl RoboRallyGameService {
+    fn do_set_input(&self, request: SetRoundInputRequest) -> Result<GameState, Error> {
+        let move_input = MoveInput::parse_from(request.player_input)?;
+        let move_ins = vec![move_input];
+        let inputs = MoveInputs::from(move_ins.as_slice());
 
         let mut state = self.state.lock().unwrap();
-
-        // TODO Make Inputs inputable
-        let move_forward = SimpleMove::single(ESimpleMove::Forward);
-        let move_card1 = MoveCard::new(1, move_forward);
-        let move_input1 = MoveInputBuilder::default()
-            .player_id(0)
-            .mmove(move_card1)
-            .build().unwrap();
-
-        let move_left_forward = SimpleMove::new(&[ESimpleMove::TurnLeft, ESimpleMove::Forward]);
-        let move_card2 = MoveCard::new(2, move_left_forward);
-        let move_input2 = MoveInputBuilder::default()
-            .player_id(1)
-            .mmove(move_card2)
-            .build().unwrap();
-
-        let ins = vec![move_input1, move_input2];
-        let inputs = MoveInputs::from(ins.as_slice());
+        let current_state = (*state).clone();
 
         let engine = Engine::new();
-        let current_state = (*state).clone();
-        let new_state = engine.run_register_phase(Box::from(current_state), &inputs);
-        if let Err(err) = new_state {
-            println!("Error: {}", err);
-            return Err(Status::new(Code::Internal, format!("{}", err)))
-        }
-        let new_state = new_state.unwrap();
+        let new_state = engine.run_register_phase(Box::from(current_state), &inputs)?;
 
-        let response = GetGameStateResponse {
-            state: Some(GameState::from(&new_state)),
-        };
+        let game_state = GameState::from(&new_state);
         *state = *new_state;
 
-        Ok(Response::new(response))
+        Ok(game_state)
     }
 }
 

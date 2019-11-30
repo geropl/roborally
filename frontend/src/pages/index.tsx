@@ -4,6 +4,7 @@ import * as URL from "url";
 import { GetGameStateRequest, GetGameStateResponse, StartGameRequest, StartGameResponse } from "ts-client/lib/protocol_pb";
 import { RoboRallyGameClient } from "ts-client/lib/ProtocolServiceClientPb";
 import { BoardView } from "../components/board/board-view";
+import { MoveCardDebugInput } from "../components/move-card-debug-input";
 
 interface DashboardState {
     response: string | undefined,
@@ -24,6 +25,7 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
                     <BoardView />
                     <input type="button" value="StartGame" onClick={() => this.requestStartGame() } />
                     <input type="button" value="GetGameState" onClick={() => this.requestGameState() } />
+                    <MoveCardDebugInput />
                     <label id="output">{this.state && this.state.response || ""}</label>
                 </div>
             </div>

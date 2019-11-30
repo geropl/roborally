@@ -1,7 +1,90 @@
+use failure::Fail;
+
 use crate::game::state;
+use crate::game::engine::move_inputs;
+use crate::game::engine::move_engine;
 
 tonic::include_proto!("protocol");
 
+// Protocol -> state
+#[derive(Debug, Fail)]
+pub enum ProtocolError {
+    // #[fail(display = "Invalid player input for player: {}", player_id)]
+    // InvalidPlayerInput {
+    //     player_id: state::PlayerID,
+    // },
+    #[fail(display = "Missing player input!")]
+    MissingPlayerInput {
+    },
+    #[fail(display = "Expected one of enum {}, found value {}!", enum_name, value)]
+    WrongEnumValue {
+        enum_name: String,
+        value: i32,
+    },
+}
+
+impl move_inputs::MoveInput {
+    pub fn parse_from(player_input: Option<PlayerInput>) -> Result<move_inputs::MoveInput, ProtocolError> {
+        if player_input.is_none() {
+            return Err(ProtocolError::MissingPlayerInput{});
+        }
+        let player_input = player_input.unwrap();
+
+        let move_cards: Result<Vec<move_inputs::MoveCard>, _> = player_input.move_cards.iter()
+            .map(move_inputs::MoveCard::parse_from)
+            .collect();
+        Ok(move_inputs::MoveInput {
+            player_id: player_input.player_id,
+            move_cards: move_cards?, 
+        })
+    }
+}
+
+impl move_inputs::MoveCard {
+    fn parse_from(move_card: &MoveCard) -> Result<move_inputs::MoveCard, ProtocolError> {
+        let simple_moves: Result<Vec<move_engine::ESimpleMove>, _> = move_card.moves.iter()
+            .map(|mmove_i32| move_engine::ESimpleMove::parse_from(*mmove_i32))
+            .collect();
+        let simple_moves = simple_moves?;
+        Ok(move_inputs::MoveCard {
+            priority: move_card.priority,
+            tmove: move_inputs::SimpleMove::new(&simple_moves),
+        })
+    }
+}
+
+impl move_engine::ESimpleMove {
+    fn parse_from(mmove_i32: i32) -> Result<move_engine::ESimpleMove, ProtocolError> {
+        let mmove = match ESimpleMove::from_i32(mmove_i32) {
+            None => {
+                return Err(ProtocolError::WrongEnumValue{
+                    enum_name: String::from("ESimpleMove"),
+                    value: mmove_i32,
+                });
+            },
+            Some(m) => m,
+        };
+
+        Ok(move_engine::ESimpleMove::from(mmove))
+    }
+}
+
+impl From<ESimpleMove> for move_engine::ESimpleMove {
+    fn from(mmove: ESimpleMove) -> move_engine::ESimpleMove {
+        match mmove {
+            ESimpleMove::Forward => move_engine::ESimpleMove::Forward,
+            ESimpleMove::Backward => move_engine::ESimpleMove::Backward,
+            ESimpleMove::StepLeft => move_engine::ESimpleMove::StepLeft,
+            ESimpleMove::StepRight => move_engine::ESimpleMove::StepRight,
+            
+            ESimpleMove::TurnRight => move_engine::ESimpleMove::TurnRight,
+            ESimpleMove::TurnLeft => move_engine::ESimpleMove::TurnLeft,
+            ESimpleMove::UTurn => move_engine::ESimpleMove::UTurn,
+        }
+    }
+}
+
+// State -> protocol
 impl From<&Box<state::State>> for GameState {
     fn from(state: &Box<state::State>) -> GameState {
         use std::borrow::Borrow;

@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package protocol;
+
+message PlayerInput {
+    uint32 player_id = 1;
+    repeated MoveCard move_cards = 2;
+}
+
+message MoveCard {
+    uint32 priority = 1;
+    repeated ESimpleMove moves = 2;
+}
+
+enum ESimpleMove {
+    Forward = 0;
+    Backward = 1;
+    StepLeft = 2;
+    StepRight = 3;
+    
+    TurnRight = 4;
+    TurnLeft = 5;
+    UTurn = 6;
+}

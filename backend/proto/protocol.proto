@@ -16,7 +16,7 @@ message StartGameRequest {
 }
 
 message StartGameResponse {
-    
+    GameState state = 1;
 }
 
 message GetGameStateRequest {

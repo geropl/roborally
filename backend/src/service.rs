@@ -19,9 +19,13 @@ pub struct RoboRallyGameService {
 impl RoboRallyGame for RoboRallyGameService {
     async fn start_game(&self, _request: Request<StartGameRequest>) -> Result<Response<StartGameResponse>, Status> {
         let mut state = self.state.lock().unwrap();
-        *state = new_game_state();
 
-        let response = StartGameResponse{};
+        let new_state = new_game_state();
+        let response = StartGameResponse{
+            state: Some(GameState::from(&new_state)),
+        };
+        *state = new_state;
+
         Ok(Response::new(response))
     }
 

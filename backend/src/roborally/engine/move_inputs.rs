@@ -3,8 +3,8 @@ use derive_builder::Builder;
 use std::slice::Iter;
 use std::convert;
 
-use crate::game::state::{ PlayerID };
-use crate::game::engine::move_engine::{ ESimpleMove, TMove };
+use crate::roborally::state::{ PlayerID };
+use crate::roborally::engine::move_engine::{ ESimpleMove, TMove };
 
 #[derive(Debug, Clone)]
 pub struct SimpleMove {

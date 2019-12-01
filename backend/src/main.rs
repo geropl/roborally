@@ -1,6 +1,6 @@
 mod protocol;
 mod service;
-mod game;
+mod roborally;
 
 use tonic::transport::Server;
 

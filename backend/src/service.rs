@@ -6,9 +6,9 @@ use std::sync::{ Arc, Mutex };
 use crate::protocol::server::RoboRallyGame;
 use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetRoundInputRequest, SetRoundInputResponse };
 
-use crate::game::state::{ State, Board, Player, RobotBuilder, Position, EDirection };
-use crate::game::engine::move_engine::{ Engine };
-use crate::game::engine::move_inputs::{ MoveInput, MoveInputs };
+use crate::roborally::state::{ State, Board, Player, RobotBuilder, Position, EDirection };
+use crate::roborally::engine::move_engine::{ Engine };
+use crate::roborally::engine::move_inputs::{ MoveInput, MoveInputs };
 
 #[derive(Default)]
 pub struct RoboRallyGameService {

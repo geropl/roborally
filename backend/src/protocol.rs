@@ -1,8 +1,8 @@
 use failure::Fail;
 
-use crate::game::state;
-use crate::game::engine::move_inputs;
-use crate::game::engine::move_engine;
+use crate::roborally::state;
+use crate::roborally::engine::move_inputs;
+use crate::roborally::engine::move_engine;
 
 tonic::include_proto!("protocol");
 

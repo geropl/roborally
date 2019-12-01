@@ -4,7 +4,7 @@ use std::fmt;
 
 use failure::Fail;
 
-use crate::game::state::{
+use crate::roborally::state::{
     State,
     PlayerID,
     RobotID,
@@ -219,9 +219,9 @@ impl fmt::Debug for dyn TMove {
 
 #[cfg(test)]
 mod test {
-    use crate::game::state::*;
-    //use crate::game::engine::move_inputs::*;
-    use crate::game::engine::move_engine::*;
+    use crate::roborally::state::*;
+    //use crate::roborally::engine::move_inputs::*;
+    use crate::roborally::engine::move_engine::*;
 
     fn create_state() -> (Board, Vec<Player>, MoveInputs) {
         // State

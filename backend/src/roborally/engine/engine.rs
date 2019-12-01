@@ -1,6 +1,6 @@
 use failure::Fail;
 
-use crate::game::state::{ PlayerID };
+use crate::roborally::state::{ PlayerID };
 
 #[derive(Debug, Fail)]
 pub enum EngineError {

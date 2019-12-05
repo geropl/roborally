@@ -1,8 +1,8 @@
 use failure::Fail;
 
 use crate::roborally::state;
-use crate::roborally::engine::move_inputs;
-use crate::roborally::engine::move_engine;
+use crate::roborally::engine::player_input;
+use crate::roborally::engine::execution_engine;
 
 tonic::include_proto!("protocol");
 
@@ -23,63 +23,53 @@ pub enum ProtocolError {
     },
 }
 
-impl move_inputs::MoveInput {
-    pub fn parse_from(player_input: Option<PlayerInput>) -> Result<move_inputs::MoveInput, ProtocolError> {
-        if player_input.is_none() {
-            return Err(ProtocolError::MissingPlayerInput{});
-        }
-        let player_input = player_input.unwrap();
+impl player_input::PlayerInput {
+    pub fn parse_from(player_input: Option<PlayerInput>) -> Result<player_input::PlayerInput, ProtocolError> {
+        let player_input = player_input.ok_or(ProtocolError::MissingPlayerInput{})?;
 
-        let move_cards: Result<Vec<move_inputs::MoveCard>, _> = player_input.move_cards.iter()
-            .map(move_inputs::MoveCard::parse_from)
+        let move_cards: Result<Vec<state::MoveCard>, _> = player_input.move_cards.iter()
+            .map(state::MoveCard::parse_from)
             .collect();
-        Ok(move_inputs::MoveInput {
+        Ok(player_input::PlayerInput {
             player_id: player_input.player_id,
             move_cards: move_cards?, 
         })
     }
 }
 
-impl move_inputs::MoveCard {
-    fn parse_from(move_card: &MoveCard) -> Result<move_inputs::MoveCard, ProtocolError> {
-        let simple_moves: Result<Vec<move_engine::ESimpleMove>, _> = move_card.moves.iter()
-            .map(|mmove_i32| move_engine::ESimpleMove::parse_from(*mmove_i32))
+impl state::MoveCard {
+    fn parse_from(move_card: &MoveCard) -> Result<state::MoveCard, ProtocolError> {
+        let simple_moves: Result<Vec<execution_engine::ESimpleMove>, _> = move_card.moves.iter()
+            .map(|mmove_i32| execution_engine::ESimpleMove::parse_from(*mmove_i32))
             .collect();
         let simple_moves = simple_moves?;
-        Ok(move_inputs::MoveCard {
-            priority: move_card.priority,
-            tmove: move_inputs::SimpleMove::new(&simple_moves),
-        })
+        Ok(state::MoveCard::new_from_moves(move_card.priority, &simple_moves))
     }
 }
 
-impl move_engine::ESimpleMove {
-    fn parse_from(mmove_i32: i32) -> Result<move_engine::ESimpleMove, ProtocolError> {
-        let mmove = match ESimpleMove::from_i32(mmove_i32) {
-            None => {
-                return Err(ProtocolError::WrongEnumValue{
-                    enum_name: String::from("ESimpleMove"),
-                    value: mmove_i32,
-                });
-            },
-            Some(m) => m,
-        };
-
-        Ok(move_engine::ESimpleMove::from(mmove))
+impl execution_engine::ESimpleMove {
+    fn parse_from(mmove_i32: i32) -> Result<execution_engine::ESimpleMove, ProtocolError> {
+        match ESimpleMove::from_i32(mmove_i32) {
+            None => Err(ProtocolError::WrongEnumValue{
+                enum_name: String::from("ESimpleMove"),
+                value: mmove_i32,
+            }),
+            Some(m) => Ok(execution_engine::ESimpleMove::from(m)),
+        }
     }
 }
 
-impl From<ESimpleMove> for move_engine::ESimpleMove {
-    fn from(mmove: ESimpleMove) -> move_engine::ESimpleMove {
+impl From<ESimpleMove> for execution_engine::ESimpleMove {
+    fn from(mmove: ESimpleMove) -> execution_engine::ESimpleMove {
         match mmove {
-            ESimpleMove::Forward => move_engine::ESimpleMove::Forward,
-            ESimpleMove::Backward => move_engine::ESimpleMove::Backward,
-            ESimpleMove::StepLeft => move_engine::ESimpleMove::StepLeft,
-            ESimpleMove::StepRight => move_engine::ESimpleMove::StepRight,
+            ESimpleMove::Forward => execution_engine::ESimpleMove::Forward,
+            ESimpleMove::Backward => execution_engine::ESimpleMove::Backward,
+            ESimpleMove::StepLeft => execution_engine::ESimpleMove::StepLeft,
+            ESimpleMove::StepRight => execution_engine::ESimpleMove::StepRight,
             
-            ESimpleMove::TurnRight => move_engine::ESimpleMove::TurnRight,
-            ESimpleMove::TurnLeft => move_engine::ESimpleMove::TurnLeft,
-            ESimpleMove::UTurn => move_engine::ESimpleMove::UTurn,
+            ESimpleMove::TurnRight => execution_engine::ESimpleMove::TurnRight,
+            ESimpleMove::TurnLeft => execution_engine::ESimpleMove::TurnLeft,
+            ESimpleMove::UTurn => execution_engine::ESimpleMove::UTurn,
         }
     }
 }

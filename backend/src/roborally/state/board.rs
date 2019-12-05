@@ -2,112 +2,6 @@
 
 use derive_builder::Builder;
 
-use std::clone::Clone;
-use std::sync::Arc;
-use std::default::Default;
-
-#[derive(Debug, Default, Clone)]
-pub struct State {
-    pub board: Arc<Board>,
-    pub players: Vec<Player>,
-}
-
-impl State {
-    pub fn new(board: Board, players: Vec<Player>) -> State {
-        State {
-            board: Arc::new(board),
-            players: players.into_iter().collect(),
-        }
-    }
-
-    pub fn get_robot_for(&self, player_id: PlayerID) -> Option<&Robot> {
-        self.players.iter()
-            .find(|p| p.id == player_id)
-            .map(|p| &p.robot)
-    }
-
-    pub fn get_robot(&self, robot_id: RobotID) -> Option<&Robot> {
-        self.players.iter()
-            .find(|p| p.robot.id == robot_id)
-            .map(|p| &p.robot)
-    }
-
-    pub fn update_robot(&self, new_robot: Robot) -> State {
-        let old_player_index = self.players.iter()
-            .position(|p| p.robot.id == new_robot.id)
-            .unwrap();  // TODO logic error
-
-        let mut new_players = self.players.clone();
-        let old_player = new_players.remove(old_player_index);
-        new_players.push(Player {
-            robot: new_robot,
-            ..old_player
-        });
-
-        State {
-            players: new_players,
-            board: self.board.clone(),
-        }
-    }
-
-    pub fn find_robot_at(&self, pos: &Position) -> Option<&Robot> {
-        self.players.iter()
-            .find(|p| p.robot.position == *pos)
-            .map(|p| &p.robot)
-    }
-}
-
-pub type PlayerID = u32;
-
-#[derive(Debug, Clone)]
-pub struct Player {
-    pub id: PlayerID,
-    pub robot: Robot,
-}
-
-impl Player {
-    pub fn new(id: PlayerID, robot: Robot) -> Player {
-        Player {
-            id,
-            robot,
-        }
-    }
-}
-
-pub type RobotID = u32;
-
-#[derive(Debug, Default, Clone, Builder)]
-#[builder(default)]
-pub struct Robot {
-    pub id: RobotID,
-    pub damage: u32,
-    pub life_tokens: u32,
-    pub position: Position,
-    pub direction: EDirection,
-}
-
-impl Robot {
-    pub fn set_direction(&self, new_direction: EDirection) -> Robot {
-        Robot {
-            direction: new_direction,
-            ..*self
-        }
-    }
-
-    pub fn set_position(&self, new_position: Position) -> Robot {
-        Robot {
-            position: new_position,
-            ..*self
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum EConnection {
-    Free(Position),
-    Walled,
-}
-
 /**
  * Spans a rectangular board constisting of tiles.
  * Not every tile is playable, [0, 0] is the North-West/upper-left corner
@@ -182,6 +76,12 @@ impl Board {
     fn tile_index(&self, pos: &Position) -> usize {
         (pos.x + (pos.y * self.size_x)) as usize
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EConnection {
+    Free(Position),
+    Walled,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

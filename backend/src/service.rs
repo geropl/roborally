@@ -6,9 +6,9 @@ use std::sync::{ Arc, Mutex };
 use crate::protocol::server::RoboRallyGame;
 use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetRoundInputRequest, SetRoundInputResponse };
 
-use crate::roborally::state::{ State, Board, Player, RobotBuilder, Position, EDirection };
-use crate::roborally::engine::move_engine::{ Engine };
-use crate::roborally::engine::move_inputs::{ MoveInput, MoveInputs };
+use crate::roborally::state::{ State, Board, Player, RobotBuilder, Position, EDirection, RoundPhase };
+use crate::roborally::engine::round_engine::{ RoundEngine };
+use crate::roborally::engine::player_input::{ PlayerInput };
 
 #[derive(Default)]
 pub struct RoboRallyGameService {
@@ -18,25 +18,15 @@ pub struct RoboRallyGameService {
 #[tonic::async_trait]
 impl RoboRallyGame for RoboRallyGameService {
     async fn start_game(&self, _request: Request<StartGameRequest>) -> Result<Response<StartGameResponse>, Status> {
-        let mut state = self.state.lock().unwrap();
+        let game_state = self.start_new_game().map_err(into_status)?;
 
-        let new_state = new_game_state();
-        let response = StartGameResponse{
-            state: Some(GameState::from(&new_state)),
-        };
-        *state = new_state;
-
-        Ok(Response::new(response))
+        Ok(Response::new(StartGameResponse{
+            state: Some(game_state),
+        }))
     }
 
     async fn set_round_input(&self, request: Request<SetRoundInputRequest>) -> Result<Response<SetRoundInputResponse>, Status> {
-        let game_state = match self.do_set_input(request.into_inner()) {
-            Err(err) => {
-                println!("Error: {}", err);
-                return Err(Status::new(Code::Internal, format!("{}", err)))
-            },
-            Ok(s) => s,
-        };
+        let game_state = self.do_set_input(request.into_inner()).map_err(into_status)?;
 
         let response = SetRoundInputResponse{
             state: Some(game_state),
@@ -54,25 +44,39 @@ impl RoboRallyGame for RoboRallyGameService {
 }
 
 impl RoboRallyGameService {
+    fn start_new_game(&self) -> Result<GameState, Error> {
+        let mut state = new_game_state();
+        let engine = RoundEngine::new();
+        state = engine.run_round_initialization(state)?;
+        
+        let game_state = GameState::from(&state);
+        let mut persistent_state = self.state.lock().unwrap();
+        *persistent_state = *state;
+
+        Ok(game_state)
+    }
+
     fn do_set_input(&self, request: SetRoundInputRequest) -> Result<GameState, Error> {
-        let move_input = MoveInput::parse_from(request.player_input)?;
-        let move_ins = vec![move_input];
-        let inputs = MoveInputs::from(move_ins.as_slice());
+        let player_input = PlayerInput::parse_from(request.player_input)?;
 
-        let mut state = self.state.lock().unwrap();
-        let current_state = (*state).clone();
+        let mut persistent_state = self.state.lock().unwrap();
+        let mut state = Box::from((*persistent_state).clone());
 
-        let engine = Engine::new();
-        let new_state = engine.run_register_phase(Box::from(current_state), &inputs)?;
+        let engine = RoundEngine::new();
+        state = engine.set_player_input(state, &player_input)?;
 
-        let game_state = GameState::from(&new_state);
-        *state = *new_state;
+        if state.phase == RoundPhase::EXECUTE {
+            state = engine.run_execute(state)?;
+        }
+
+        let game_state = GameState::from(&state);
+        *persistent_state = *state;
 
         Ok(game_state)
     }
 }
 
-fn new_game_state() -> State {
+fn new_game_state() -> Box<State> {
     let robot1 = RobotBuilder::default()
         .id(0)
         .position(Position::new(2, 2))
@@ -88,5 +92,9 @@ fn new_game_state() -> State {
     let player2 = Player::new(1, robot2);
 
     let board = Board::new_empty_board(5, 5);
-    State::new(board, vec![player1, player2])
+    State::new_with_random_deck(board, vec![player1, player2])
+}
+
+fn into_status(err: Error) -> Status {
+    Status::new(Code::Internal, format!("{}", err))
 }

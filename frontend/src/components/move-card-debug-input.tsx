@@ -1,19 +1,20 @@
 import React from "react";
 
 export interface MoveCardDebugInputProps {
-    onNewDebugInput: (registers: DebugMoveCardState[]) => void;
+    playerId: number;
+    onNewDebugInput: (playerId: number, registers: Register[]) => void;
 }
 
 export interface MoveCardDebugInputState {
     registers: DebugMoveCardProps[];
 }
 
-export interface DebugMoveCardState {
+export interface Register {
     priority?: number;
     moves?: string[];
 }
 
-interface DebugMoveCardProps extends DebugMoveCardState {
+interface DebugMoveCardProps extends Register {
     id: number;
     onPriorityChanged: (priority: number | undefined) => void;
     onMovesChanged: (moves: string[] | undefined) => void;
@@ -27,7 +28,7 @@ export class MoveCardDebugInput extends React.Component<MoveCardDebugInputProps,
         const debugMoveCardProps = (index: number): DebugMoveCardProps => {
             return {
                 id: index,
-                priority: 20,
+                priority: (index + 1) * 10,
                 moves: ["forward"],
                 onPriorityChanged: (priority: number | undefined) => {
                     this.setState((os) => {
@@ -48,6 +49,8 @@ export class MoveCardDebugInput extends React.Component<MoveCardDebugInputProps,
                 debugMoveCardProps(0),
                 debugMoveCardProps(1),
                 debugMoveCardProps(2),
+                debugMoveCardProps(3),
+                debugMoveCardProps(4),
             ]
         };
     }
@@ -65,7 +68,7 @@ export class MoveCardDebugInput extends React.Component<MoveCardDebugInputProps,
                 <input
                     className="send"
                     type="button"
-                    value="Send"
+                    value={`Send player ${this.props.playerId}`}
                     onClick={(e) => this.onSendClicked(e)}
                     />
             </div>
@@ -73,7 +76,7 @@ export class MoveCardDebugInput extends React.Component<MoveCardDebugInputProps,
     }
 
     protected onSendClicked(_event: React.MouseEvent<HTMLInputElement>) {
-        this.props.onNewDebugInput(this.state.registers);
+        this.props.onNewDebugInput(this.props.playerId, this.state.registers);
     }
 }
 

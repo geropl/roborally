@@ -4,14 +4,7 @@ use std::fmt;
 
 use failure::Fail;
 
-use crate::roborally::state::{
-    State,
-    PlayerID,
-    RobotID,
-    EDirection,
-    EConnection,
-    Position,
-};
+use crate::roborally::state::{ State, StateError, PlayerID, RobotID, EDirection, EConnection, Position };
 
 use super::move_inputs::*;
 
@@ -21,18 +14,20 @@ pub enum MoveEngineError {
     RobotNotFound {
         player_id: PlayerID,
     },
-    #[fail(display = "Robot with id {} not found", robot_id)]
-    RobotNotFoundID {
-        robot_id: RobotID,
-    },
     #[fail(display = "No position after {:?} {:?}", pos, dir)]
     PositionNotOnBoard {
         pos: Position,
         dir: EDirection,
     },
-    #[fail(display = "Error: {}", msg)]
+    #[fail(display = "Move error: {}", msg)]
     GenericAlgorithmError {
         msg: String,
+    }
+}
+
+impl From<StateError> for MoveEngineError {
+    fn from(err: StateError) -> Self {
+        MoveEngineError::GenericAlgorithmError{ msg: format!("{}", err) }
     }
 }
 
@@ -80,7 +75,7 @@ impl Engine {
             let robot = state.get_robot_for(player_id).ok_or(MoveEngineError::RobotNotFound{ player_id })?;
             let new_direction = Engine::map_move_to_direction_change(smove, robot.direction);
             let new_robot = robot.set_direction(new_direction);
-            Ok(Box::from(state.update_robot(new_robot)))
+            Ok(Box::from(state.update_robot(new_robot)?))
         } else {
             let robot = state.get_robot_for(player_id).ok_or(MoveEngineError::RobotNotFound{ player_id })?;
             let direction = Engine::map_move_to_direction_change(smove, robot.direction);
@@ -102,7 +97,7 @@ impl Engine {
                 .ok_or(MoveEngineError::GenericAlgorithmError {
                     msg: String::from("Expected stack to not be empty!"),
                 })?;
-            let robot = state.get_robot(*robot_id).unwrap();
+            let robot = state.get_robot_or_fail(*robot_id)?;
             let from = &robot.position;
 
             // Handle different neighbor connection
@@ -132,8 +127,7 @@ impl Engine {
         // 2. Try to actually move
         while !push_stack.is_empty() {
             let robot_id = push_stack.last().unwrap();
-            let robot = state.get_robot(*robot_id)
-                .ok_or(MoveEngineError::RobotNotFoundID{ robot_id: *robot_id })?;
+            let robot = state.get_robot_or_fail(*robot_id)?;
             
             let to = match board.get_neighbor_in(&robot.position, direction) {
                 None => {
@@ -148,7 +142,7 @@ impl Engine {
 
             // Actual move TODO Should field do this, too?
             let new_robot = robot.set_position(to);
-            state = Box::from(state.update_robot(new_robot));
+            state = Box::from(state.update_robot(new_robot)?);
             push_stack.pop();
         }
         Ok(state)
@@ -240,12 +234,10 @@ mod test {
         let player2 = Player::new(1, robot2);
 
         // Inputs
-        let move_forward = SimpleMove::single(ESimpleMove::Forward);
-        let move_card1 = MoveCard::new(1, move_forward);
+        let move_card1 = MoveCard::new_from_moves(1, &[ESimpleMove::Forward]);
         let move_input1 = MoveInput::new(player1.id, &[move_card1]);
 
-        let move_left_forward = SimpleMove::new(&[ESimpleMove::TurnLeft, ESimpleMove::Forward]);
-        let move_card2 = MoveCard::new(2, move_left_forward);
+        let move_card2 = MoveCard::new_from_moves(2, &[ESimpleMove::TurnLeft, ESimpleMove::Forward]);
         let move_input2 = MoveInput::new(player2.id, &[move_card2]);
         
         let ins = vec![move_input1, move_input2];
@@ -324,11 +316,10 @@ mod test {
         let players = vec![player1, player2];
 
         // Inputs
-        let move_forward = SimpleMove::single(ESimpleMove::Forward);
-        let move_card1 = MoveCard::new(1, move_forward.clone());
+        let move_card1 = MoveCard::new_from_moves(1, &[ESimpleMove::Forward]);
         let move_input1 = MoveInput::new(player_id1, &[move_card1]);
 
-        let move_card2 = MoveCard::new(2, move_forward);
+        let move_card2 = MoveCard::new_from_moves(2, &[ESimpleMove::Forward]);
         let move_input2 = MoveInput::new(player_id2, &[move_card2]);
 
         let ins = vec![move_input1, move_input2];

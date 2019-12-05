@@ -13,5 +13,21 @@
       "editor.tabSize": 4
     },
    "rust-client.updateOnStartup": false,
-   "rust.clippy_preference": "on"
+   "rust.clippy_preference": "on",
+   "rust.crate_blacklist": [
+      "cocoa",
+      "gleam",
+      "glium",
+      "idna",
+      "libc",
+      "openssl",
+      "rustc_serialize",
+      "serde",
+      "serde_json",
+      "typenum",
+      "unicode_normalization",
+      "unicode_segmentation",
+      "winapi",
+      "rand"
+   ]
 }

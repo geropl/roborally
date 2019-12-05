@@ -1,51 +1,8 @@
 use derive_builder::Builder;
 
-use std::slice::Iter;
 use std::convert;
 
-use crate::roborally::state::{ PlayerID };
-use crate::roborally::engine::move_engine::{ ESimpleMove, TMove };
-
-#[derive(Debug, Clone)]
-pub struct SimpleMove {
-    chain: Vec<ESimpleMove>,
-}
-
-impl SimpleMove {
-    pub fn new(simple_moves: &[ESimpleMove]) -> Box<SimpleMove> {
-        Box::from(SimpleMove {
-            chain: simple_moves.to_vec(),
-        })
-    }
-
-    pub fn single(mmove: ESimpleMove) -> Box<SimpleMove> {
-        SimpleMove::new(&[mmove])
-    }
-}
-
-impl TMove for SimpleMove {
-    fn iter(&self) -> Iter<ESimpleMove> {
-        self.chain.iter()
-    }
-    fn box_clone(&self) -> Box<dyn TMove> {
-        Box::new((*self).clone())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct MoveCard {
-    pub priority: u32,
-    pub tmove: Box<dyn TMove>,
-}
-
-impl MoveCard {
-    pub fn new(priority: u32, tmove: Box<dyn TMove>) -> MoveCard {
-        MoveCard {
-            priority,
-            tmove,
-        }
-    }
-}
+use crate::roborally::state::{ PlayerID, MoveCard };
 
 #[derive(Debug, Clone, Builder)]
 pub struct MoveInput {

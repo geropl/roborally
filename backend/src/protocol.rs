@@ -30,8 +30,8 @@ impl move_inputs::MoveInput {
         }
         let player_input = player_input.unwrap();
 
-        let move_cards: Result<Vec<move_inputs::MoveCard>, _> = player_input.move_cards.iter()
-            .map(move_inputs::MoveCard::parse_from)
+        let move_cards: Result<Vec<state::MoveCard>, _> = player_input.move_cards.iter()
+            .map(state::MoveCard::parse_from)
             .collect();
         Ok(move_inputs::MoveInput {
             player_id: player_input.player_id,
@@ -40,16 +40,13 @@ impl move_inputs::MoveInput {
     }
 }
 
-impl move_inputs::MoveCard {
-    fn parse_from(move_card: &MoveCard) -> Result<move_inputs::MoveCard, ProtocolError> {
+impl state::MoveCard {
+    fn parse_from(move_card: &MoveCard) -> Result<state::MoveCard, ProtocolError> {
         let simple_moves: Result<Vec<move_engine::ESimpleMove>, _> = move_card.moves.iter()
             .map(|mmove_i32| move_engine::ESimpleMove::parse_from(*mmove_i32))
             .collect();
         let simple_moves = simple_moves?;
-        Ok(move_inputs::MoveCard {
-            priority: move_card.priority,
-            tmove: move_inputs::SimpleMove::new(&simple_moves),
-        })
+        Ok(state::MoveCard::new_from_moves(move_card.priority, &simple_moves))
     }
 }
 

@@ -10,6 +10,7 @@ use crate::roborally::state::{
     // EConnection,
     // Position,
 };
+use super::move_engine::{ Engine as MoveEngine };
 
 #[derive(Debug, Fail)]
 pub enum EngineError {
@@ -31,6 +32,7 @@ impl From<StateError> for EngineError {
 }
 
 pub struct Engine {
+    pub move_engine: MoveEngine,
 }
 
 impl Engine {
@@ -47,7 +49,7 @@ impl Engine {
                 let mut new_robot = player.robot.set_damage(0);
                 
                 //  - advance power down state
-                if player.robot.powered_down == EPoweredDown::NextRound {
+                if new_robot.powered_down == EPoweredDown::NextRound {
                     new_robot = new_robot.set_powered_down(EPoweredDown::Yes);
                 }
                 state = Box::from(state.update_robot(new_robot)?);
@@ -55,17 +57,23 @@ impl Engine {
         }
 
         // 1. Deal Program Cards:
-        //  - shuffle
-        //  - draw 9 (- damage tokens, - locked registers) cards
+        //  - draw 9 cards randomly (- damage tokens, - locked registers) cards
+        for i in 0..(state.players.len() - 1) {
+            let player = &state.players[i];
+            let cards_to_draw = 9 - player.robot.damage;
+            let (deck, cards) = state.deck.take_random_cards(cards_to_draw);
+            let new_player = player.set_program_card_deck(cards);
+            state = Box::from(state.update_player(new_player)?);
+            state = Box::from(state.set_deck(deck));
+        }
 
-        // 2. Program registers
-        //  - registers
-        //  - 
-        //  - input: leave powered down?
-
-        // 3, Announce Power Down
-        //  - player with damaged robots may announce power down _for next turn_
-        //  - 
+        // 2. Program registers + 3. Announce Power Down
+        //  - input:
+        //    - registers
+        //    - if powered_down:
+        //       - leave powered down?
+        //      else
+        //       - player with damaged robots may announce power down _for next turn_
 
         // 4. Complete Registers (register phase)
 
@@ -74,6 +82,7 @@ impl Engine {
         //    - single-wrench: -1 damage token
         //    - crossed-wrench: -1 damage token + option card
         //  - discard all program cards from registers that aren't locked
+
         Err(EngineError::Invalid{ player_id: 0 })
     }
 }

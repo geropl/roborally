@@ -2,86 +2,8 @@
 
 use derive_builder::Builder;
 
-use std::clone::Clone;
-use std::sync::Arc;
-use std::default::Default;
-
 use super::board::*;
-use super::StateError;
-
-#[derive(Debug, Default, Clone)]
-pub struct State {
-    pub board: Arc<Board>,
-    pub players: Vec<Player>,
-}
-
-impl State {
-    pub fn new(board: Board, players: Vec<Player>) -> State {
-        State {
-            board: Arc::new(board),
-            players: players.into_iter().collect(),
-        }
-    }
-
-    pub fn get_robot_for(&self, player_id: PlayerID) -> Option<&Robot> {
-        self.players.iter()
-            .find(|p| p.id == player_id)
-            .map(|p| &p.robot)
-    }
-
-    pub fn get_robot_or_fail(&self, robot_id: RobotID) -> Result<&Robot, StateError> {
-        self.players.iter()
-            .find(|p| p.robot.id == robot_id)
-            .map(|p| &p.robot)
-            .ok_or(StateError::RobotNotFoundID{ robot_id })
-    }
-
-    pub fn update_robot_fn<F>(&self, robot_id: RobotID, f: F) -> Result<State, StateError>
-        where F: Fn(Robot) -> Robot {
-        let old_player_index = self.players.iter()
-            .position(|p| p.robot.id == robot_id)
-            .ok_or(StateError::RobotNotFoundID{ robot_id })?;
-
-        let mut new_players = self.players.clone();
-        let old_player = new_players.remove(old_player_index);
-
-        let mut new_robot = old_player.robot.clone(); 
-        let new_robot = f(old_player.robot);
-        new_players.push(Player {
-            robot: new_robot,
-            ..old_player
-        });
-
-        Ok(State {
-            players: new_players,
-            board: self.board.clone(),
-        })
-    }
-
-    pub fn update_robot(&self, new_robot: Robot) -> Result<State, StateError> {
-        let old_player_index = self.players.iter()
-            .position(|p| p.robot.id == new_robot.id)
-            .ok_or(StateError::RobotNotFoundID{ robot_id: new_robot.id })?;
-
-        let mut new_players = self.players.clone();
-        let old_player = new_players.remove(old_player_index);
-        new_players.push(Player {
-            robot: new_robot,
-            ..old_player
-        });
-
-        Ok(State {
-            players: new_players,
-            board: self.board.clone(),
-        })
-    }
-
-    pub fn find_robot_at(&self, pos: &Position) -> Option<&Robot> {
-        self.players.iter()
-            .find(|p| p.robot.position == *pos)
-            .map(|p| &p.robot)
-    }
-}
+use super::cards::*;
 
 pub type PlayerID = u32;
 
@@ -89,6 +11,8 @@ pub type PlayerID = u32;
 pub struct Player {
     pub id: PlayerID,
     pub robot: Robot,
+    pub registers: Vec<Register>,
+    pub program_card_deck: Vec<MoveCard>,
 }
 
 impl Player {
@@ -96,6 +20,17 @@ impl Player {
         Player {
             id,
             robot,
+            registers: vec![],
+            program_card_deck: vec![],
+        }
+    }
+
+    pub fn set_program_card_deck(&self, program_card_deck: Vec<MoveCard>) -> Player {
+        Player {
+            robot: self.robot.clone(),
+            program_card_deck,
+            registers: self.registers.clone(),
+            ..*self
         }
     }
 }
@@ -154,4 +89,10 @@ impl Default for EPoweredDown {
     fn default() -> EPoweredDown {
         EPoweredDown::No
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Register {
+    pub move_card: MoveCard,
+    pub locked: bool,
 }

@@ -194,7 +194,7 @@ pub trait TMove {
      * Helper method for being able to clone() Trait Objects
      * Reference: https://users.rust-lang.org/t/solved-is-it-possible-to-clone-a-boxed-trait-object/1714/6
      */
-    fn box_clone(&self) -> Box<dyn TMove>;
+    fn box_clone(&self) -> Box<dyn TMove + Send>;
 }
 
 impl Clone for Box<dyn TMove> {

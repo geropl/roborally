@@ -1,5 +1,7 @@
 use std::slice::Iter;
 
+use std::fmt;
+
 use crate::roborally::engine::move_engine::{ ESimpleMove, TMove };
 
 #[derive(Debug)]
@@ -55,7 +57,7 @@ impl ProgramCardDeckGenerator {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ProgramCardDeck {
     pub cards: Vec<MoveCard>,
 }
@@ -73,32 +75,42 @@ impl ProgramCardDeck {
         }
     }
 
-    pub fn take_random_cards(&self, amount: usize) -> (ProgramCardDeck, Vec<MoveCard>) {
+    pub fn take_random_cards(&self, amount: u32) -> (ProgramCardDeck, Vec<MoveCard>) {
         use rand::seq::index;
 
-        let mut new_cards = self.cards.clone();
+        let amount = amount as usize;
+        let mut cards = self.cards.clone();
         let mut rng = rand::thread_rng();
-        let indeces = index::sample(&mut rng, new_cards.len(), amount).into_vec();
+        let indeces = index::sample(&mut rng, cards.len(), amount).into_vec();
 
         let mut chosen_cards = Vec::with_capacity(amount);
         for i in indeces {
-            chosen_cards.push(new_cards.remove(i));
+            chosen_cards.push(cards.remove(i));
         }
 
-        (ProgramCardDeck {
-            cards: new_cards,
-        }, chosen_cards)
+        (ProgramCardDeck { cards }, chosen_cards)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct MoveCard {
     pub priority: u32,
-    pub tmove: Box<dyn TMove>,
+    pub tmove: Box<dyn TMove + Send>,
+}
+
+impl fmt::Debug for (dyn TMove + Send + 'static) {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TMove")
+    }
+}
+impl Clone for Box<dyn TMove + Send> {
+    fn clone(&self) -> Box<dyn TMove + Send> {
+        self.box_clone()
+    }
 }
 
 impl MoveCard {
-    pub fn new(priority: u32, tmove: Box<dyn TMove>) -> MoveCard {
+    pub fn new(priority: u32, tmove: Box<dyn TMove + Send>) -> MoveCard {
         MoveCard {
             priority,
             tmove,
@@ -133,7 +145,7 @@ impl TMove for SimpleMove {
     fn iter(&self) -> Iter<ESimpleMove> {
         self.chain.iter()
     }
-    fn box_clone(&self) -> Box<dyn TMove> {
+    fn box_clone(&self) -> Box<dyn TMove + Send> {
         Box::new((*self).clone())
     }
 }

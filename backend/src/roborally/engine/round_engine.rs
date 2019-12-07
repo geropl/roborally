@@ -5,12 +5,8 @@ use crate::roborally::state::{
     PlayerID,
     EPoweredDown,
     StateError,
-    // RobotID,
-    // EDirection,
-    // EConnection,
-    // Position,
 };
-use super::move_engine::{ Engine as MoveEngine };
+use super::execution_engine::{ ExecutionEngine };
 
 #[derive(Debug, Fail)]
 pub enum EngineError {
@@ -31,11 +27,18 @@ impl From<StateError> for EngineError {
     }
 }
 
-pub struct Engine {
-    pub move_engine: MoveEngine,
+pub enum RoundPhase {
+    PREPARATION,
+    PROGRAM,
+    EXECUTE,
+    CLEANUP
 }
 
-impl Engine {
+pub struct RoundEngine {
+    pub exec_engine: ExecutionEngine,
+}
+
+impl RoundEngine {
     pub fn run_round_initialization(&self, state: Box<State>) -> Result<Box<State>, EngineError> {
         let mut state = state;
 
@@ -57,7 +60,7 @@ impl Engine {
         }
 
         // 1. Deal Program Cards:
-        //  - draw 9 cards randomly (- damage tokens, - locked registers) cards
+        //  - draw 9 cards randomly (- damage tokens) cards
         for i in 0..(state.players.len() - 1) {
             let player = &state.players[i];
             let cards_to_draw = 9 - player.robot.damage;
@@ -67,6 +70,10 @@ impl Engine {
             state = Box::from(state.set_deck(deck));
         }
 
+        Ok(state)
+    }
+
+    pub fn set_player_input(&self, state: Box<State>) -> Result<Box<State>, EngineError> {
         // 2. Program registers + 3. Announce Power Down
         //  - input:
         //    - registers
@@ -74,14 +81,21 @@ impl Engine {
         //       - leave powered down?
         //      else
         //       - player with damaged robots may announce power down _for next turn_
+        Err(EngineError::Invalid{ player_id: 0 })
+    }
+
+    pub fn run_execute(&self, state: Box<State>) -> Result<Box<State>, EngineError> {
+        let mut state = state;
 
         // 4. Complete Registers (register phase)
+        //state = self.exec_engine.run_register_phase(state)?;
 
         // 5. Cleanup
         //  - repairs and upgrades:
         //    - single-wrench: -1 damage token
         //    - crossed-wrench: -1 damage token + option card
         //  - discard all program cards from registers that aren't locked
+        // TODO When to check for death?
 
         Err(EngineError::Invalid{ player_id: 0 })
     }

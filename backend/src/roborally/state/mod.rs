@@ -55,21 +55,19 @@ impl State {
             .ok_or(StateError::RobotNotFoundID{ robot_id })
     }
 
-    pub fn update_robot_fn<F>(&self, robot_id: RobotID, f: F) -> Result<State, StateError>
-        where F: Fn(Robot) -> Robot {
+    pub fn update_robot_fn<T>(&self, robot_id: RobotID, transform: T) -> Result<State, StateError>
+        where T: Fn(Robot) -> Robot {
         let old_player_index = self.players.iter()
             .position(|p| p.robot.id == robot_id)
             .ok_or(StateError::RobotNotFoundID{ robot_id })?;
 
         let mut new_players = self.players.clone();
-        let old_player = new_players.remove(old_player_index);
-
-        let mut new_robot = old_player.robot.clone(); 
-        let new_robot = f(old_player.robot);
-        new_players.push(Player {
+        let old_player = new_players[old_player_index].clone();
+        let new_robot = transform(old_player.robot);
+        new_players[old_player_index] = Player {
             robot: new_robot,
             ..old_player
-        });
+        };
 
         Ok(State {
             players: new_players,
@@ -84,11 +82,10 @@ impl State {
             .ok_or(StateError::RobotNotFoundID{ robot_id: new_robot.id })?;
 
         let mut new_players = self.players.clone();
-        let old_player = new_players.remove(old_player_index);
-        new_players.push(Player {
+        new_players[old_player_index] = Player {
             robot: new_robot,
-            ..old_player
-        });
+            ..new_players[old_player_index].clone()
+        };
 
         Ok(State {
             players: new_players,

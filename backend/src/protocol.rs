@@ -2,7 +2,7 @@ use failure::Fail;
 
 use crate::roborally::state;
 use crate::roborally::engine::move_inputs;
-use crate::roborally::engine::move_engine;
+use crate::roborally::engine::execution_engine;
 
 tonic::include_proto!("protocol");
 
@@ -42,16 +42,16 @@ impl move_inputs::MoveInput {
 
 impl state::MoveCard {
     fn parse_from(move_card: &MoveCard) -> Result<state::MoveCard, ProtocolError> {
-        let simple_moves: Result<Vec<move_engine::ESimpleMove>, _> = move_card.moves.iter()
-            .map(|mmove_i32| move_engine::ESimpleMove::parse_from(*mmove_i32))
+        let simple_moves: Result<Vec<execution_engine::ESimpleMove>, _> = move_card.moves.iter()
+            .map(|mmove_i32| execution_engine::ESimpleMove::parse_from(*mmove_i32))
             .collect();
         let simple_moves = simple_moves?;
         Ok(state::MoveCard::new_from_moves(move_card.priority, &simple_moves))
     }
 }
 
-impl move_engine::ESimpleMove {
-    fn parse_from(mmove_i32: i32) -> Result<move_engine::ESimpleMove, ProtocolError> {
+impl execution_engine::ESimpleMove {
+    fn parse_from(mmove_i32: i32) -> Result<execution_engine::ESimpleMove, ProtocolError> {
         let mmove = match ESimpleMove::from_i32(mmove_i32) {
             None => {
                 return Err(ProtocolError::WrongEnumValue{
@@ -62,21 +62,21 @@ impl move_engine::ESimpleMove {
             Some(m) => m,
         };
 
-        Ok(move_engine::ESimpleMove::from(mmove))
+        Ok(execution_engine::ESimpleMove::from(mmove))
     }
 }
 
-impl From<ESimpleMove> for move_engine::ESimpleMove {
-    fn from(mmove: ESimpleMove) -> move_engine::ESimpleMove {
+impl From<ESimpleMove> for execution_engine::ESimpleMove {
+    fn from(mmove: ESimpleMove) -> execution_engine::ESimpleMove {
         match mmove {
-            ESimpleMove::Forward => move_engine::ESimpleMove::Forward,
-            ESimpleMove::Backward => move_engine::ESimpleMove::Backward,
-            ESimpleMove::StepLeft => move_engine::ESimpleMove::StepLeft,
-            ESimpleMove::StepRight => move_engine::ESimpleMove::StepRight,
+            ESimpleMove::Forward => execution_engine::ESimpleMove::Forward,
+            ESimpleMove::Backward => execution_engine::ESimpleMove::Backward,
+            ESimpleMove::StepLeft => execution_engine::ESimpleMove::StepLeft,
+            ESimpleMove::StepRight => execution_engine::ESimpleMove::StepRight,
             
-            ESimpleMove::TurnRight => move_engine::ESimpleMove::TurnRight,
-            ESimpleMove::TurnLeft => move_engine::ESimpleMove::TurnLeft,
-            ESimpleMove::UTurn => move_engine::ESimpleMove::UTurn,
+            ESimpleMove::TurnRight => execution_engine::ESimpleMove::TurnRight,
+            ESimpleMove::TurnLeft => execution_engine::ESimpleMove::TurnLeft,
+            ESimpleMove::UTurn => execution_engine::ESimpleMove::UTurn,
         }
     }
 }

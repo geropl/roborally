@@ -9,7 +9,7 @@ use crate::roborally::state::{ State, StateError, PlayerID, RobotID, EDirection,
 use super::move_inputs::*;
 
 #[derive(Debug, Fail)]
-pub enum MoveEngineError {
+pub enum ExecutionEngineError {
     #[fail(display = "Robot not found for player with id {}", player_id)]
     RobotNotFound {
         player_id: PlayerID,
@@ -25,22 +25,22 @@ pub enum MoveEngineError {
     }
 }
 
-impl From<StateError> for MoveEngineError {
+impl From<StateError> for ExecutionEngineError {
     fn from(err: StateError) -> Self {
-        MoveEngineError::GenericAlgorithmError{ msg: format!("{}", err) }
+        ExecutionEngineError::GenericAlgorithmError{ msg: format!("{}", err) }
     }
 }
 
 #[derive(Default)]
-pub struct Engine {}
+pub struct ExecutionEngine {}
 
-impl Engine {
-    pub fn new() -> Engine {
-        Engine::default()
+impl ExecutionEngine {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     // TODO MoveInputs is a temporary fake to have sth running without a full engine. Merges into state afterwards
-    pub fn run_register_phase(&self, state: Box<State>, inputs: &MoveInputs) -> Result<Box<State>, MoveEngineError> {
+    pub fn run_register_phase(&self, state: Box<State>, inputs: &MoveInputs) -> Result<Box<State>, ExecutionEngineError> {
         // Phase:
         // 1. Robots move, in order of Priority
         let mut state = state;
@@ -62,7 +62,7 @@ impl Engine {
         Ok(state)
     }
 
-    fn perform_move(&self, state: Box<State>, player_id: PlayerID, tmove: Box<dyn TMove>) -> Result<Box<State>, MoveEngineError> {
+    fn perform_move(&self, state: Box<State>, player_id: PlayerID, tmove: Box<dyn TMove>) -> Result<Box<State>, ExecutionEngineError> {
         let mut state = state;
         for smove in tmove.iter() {
             state = self.perform_simple_move(state, player_id, smove)?;
@@ -70,20 +70,20 @@ impl Engine {
         Ok(state)
     }
 
-    fn perform_simple_move(&self, state: Box<State>, player_id: PlayerID, smove: &ESimpleMove) -> Result<Box<State>, MoveEngineError> {
+    fn perform_simple_move(&self, state: Box<State>, player_id: PlayerID, smove: &ESimpleMove) -> Result<Box<State>, ExecutionEngineError> {
         if smove.is_turn() {
-            let robot = state.get_robot_for(player_id).ok_or(MoveEngineError::RobotNotFound{ player_id })?;
-            let new_direction = Engine::map_move_to_direction_change(smove, robot.direction);
+            let robot = state.get_robot_for(player_id).ok_or(ExecutionEngineError::RobotNotFound{ player_id })?;
+            let new_direction = Self::map_move_to_direction_change(smove, robot.direction);
             let new_robot = robot.set_direction(new_direction);
             Ok(Box::from(state.update_robot(new_robot)?))
         } else {
-            let robot = state.get_robot_for(player_id).ok_or(MoveEngineError::RobotNotFound{ player_id })?;
-            let direction = Engine::map_move_to_direction_change(smove, robot.direction);
+            let robot = state.get_robot_for(player_id).ok_or(ExecutionEngineError::RobotNotFound{ player_id })?;
+            let direction = Self::map_move_to_direction_change(smove, robot.direction);
             self.try_to_move_robot(state, player_id, direction)
         }
     }
 
-    fn try_to_move_robot(&self, state: Box<State>, moving_robot_id: RobotID, direction: EDirection) -> Result<Box<State>, MoveEngineError> {
+    fn try_to_move_robot(&self, state: Box<State>, moving_robot_id: RobotID, direction: EDirection) -> Result<Box<State>, ExecutionEngineError> {
         let mut state = state;
         let board = state.board.clone();
 
@@ -94,7 +94,7 @@ impl Engine {
         // 1. Gather move chain (limited by wall)
         loop {
             let robot_id = push_stack.last()
-                .ok_or(MoveEngineError::GenericAlgorithmError {
+                .ok_or(ExecutionEngineError::GenericAlgorithmError {
                     msg: String::from("Expected stack to not be empty!"),
                 })?;
             let robot = state.get_robot_or_fail(*robot_id)?;
@@ -103,7 +103,7 @@ impl Engine {
             // Handle different neighbor connection
             let to = match board.get_neighbor_in(from, direction) {
                 None => {
-                    return Err(MoveEngineError::PositionNotOnBoard { pos: *from, dir: direction })
+                    return Err(ExecutionEngineError::PositionNotOnBoard { pos: *from, dir: direction })
                 },
                 Some(EConnection::Walled) => {
                     // No further chaining or movement possible: we're done here
@@ -131,7 +131,7 @@ impl Engine {
             
             let to = match board.get_neighbor_in(&robot.position, direction) {
                 None => {
-                    return Err(MoveEngineError::PositionNotOnBoard { pos: robot.position, dir: direction })
+                    return Err(ExecutionEngineError::PositionNotOnBoard { pos: robot.position, dir: direction })
                 },
                 Some(EConnection::Walled) => {
                     // Cannot move
@@ -215,7 +215,7 @@ impl fmt::Debug for dyn TMove {
 mod test {
     use crate::roborally::state::*;
     //use crate::roborally::engine::move_inputs::*;
-    use crate::roborally::engine::move_engine::*;
+    use crate::roborally::engine::execution_engine::*;
 
     fn create_state() -> (Board, Vec<Player>, MoveInputs) {
         // State
@@ -248,11 +248,11 @@ mod test {
     }
 
     #[test]
-    fn test_simple_move() -> Result<(), Box<MoveEngineError>> {
+    fn test_simple_move() -> Result<(), Box<ExecutionEngineError>> {
         let (board, players, inputs) = create_state();
         let state = Box::from(State::new(board, players));
         
-        let engine = Engine::default();
+        let engine = ExecutionEngine::default();
         let actual_state = engine.run_register_phase(state, &inputs)?;
 
         let actual_robot1 = actual_state.get_robot_for(0).unwrap();
@@ -266,7 +266,7 @@ mod test {
     }
 
     #[test]
-    fn test_wall_blocks() -> Result<(), Box<MoveEngineError>> {
+    fn test_wall_blocks() -> Result<(), Box<ExecutionEngineError>> {
         // Board
         let board = Board {
             tiles: vec![
@@ -328,7 +328,7 @@ mod test {
         // State
         let state = Box::from(State::new(board, players));
         
-        let engine = Engine::default();
+        let engine = ExecutionEngine::default();
         let actual_state = engine.run_register_phase(state, &inputs)?;
 
         let actual_robot1 = actual_state.get_robot_for(0).unwrap();

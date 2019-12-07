@@ -7,7 +7,7 @@ use crate::protocol::server::RoboRallyGame;
 use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetRoundInputRequest, SetRoundInputResponse };
 
 use crate::roborally::state::{ State, Board, Player, RobotBuilder, Position, EDirection };
-use crate::roborally::engine::move_engine::{ Engine };
+use crate::roborally::engine::execution_engine::{ ExecutionEngine };
 use crate::roborally::engine::move_inputs::{ MoveInput, MoveInputs };
 
 #[derive(Default)]
@@ -62,7 +62,7 @@ impl RoboRallyGameService {
         let mut state = self.state.lock().unwrap();
         let current_state = (*state).clone();
 
-        let engine = Engine::new();
+        let engine = ExecutionEngine::new();
         let new_state = engine.run_register_phase(Box::from(current_state), &inputs)?;
 
         let game_state = GameState::from(&new_state);

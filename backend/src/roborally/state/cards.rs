@@ -63,17 +63,17 @@ pub struct ProgramCardDeck {
 }
 
 impl ProgramCardDeck {
-    pub fn shuffle(&self) -> ProgramCardDeck {
-        use rand::seq::SliceRandom;
+    // pub fn shuffle(&self) -> ProgramCardDeck {
+    //     use rand::seq::SliceRandom;
 
-        let mut new_cards = self.cards.clone();
-        let mut rng = rand::thread_rng();
-        new_cards.shuffle(&mut rng);
+    //     let mut new_cards = self.cards.clone();
+    //     let mut rng = rand::thread_rng();
+    //     new_cards.shuffle(&mut rng);
 
-        ProgramCardDeck {
-            cards: new_cards,
-        }
-    }
+    //     ProgramCardDeck {
+    //         cards: new_cards,
+    //     }
+    // }
 
     pub fn take_random_cards(&self, amount: u32) -> (ProgramCardDeck, Vec<MoveCard>) {
         use rand::seq::index;

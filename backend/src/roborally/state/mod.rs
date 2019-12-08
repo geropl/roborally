@@ -62,15 +62,15 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(board: Board, players: Vec<Player>) -> State {
+    pub fn new_with_random_deck(board: Board, players: Vec<Player>) -> Box<State> {
         let config = ProgramCardDeckConfig::default();
         let gen = ProgramCardDeckGenerator::new();
-        State {
+        Box::from(State {
             board: Arc::new(board),
             players: players.into_iter().collect(),
             deck: gen.generate_program_deck(config),
             phase: RoundPhase::PREPARATION,
-        }
+        })
     }
 
     pub fn get_robot_for(&self, player_id: PlayerID) -> Option<&Robot> {
@@ -108,7 +108,7 @@ impl State {
         })
     }
 
-    pub fn update_robot(&self, new_robot: Robot) -> Result<State, StateError> {
+    pub fn update_robot(&self, new_robot: Robot) -> Result<Box<State>, StateError> {
         let old_player_index = self.players.iter()
             .position(|p| p.robot.id == new_robot.id)
             .ok_or(StateError::RobotNotFoundID{ robot_id: new_robot.id })?;
@@ -119,15 +119,15 @@ impl State {
             ..new_players[old_player_index].clone()
         };
 
-        Ok(State {
+        Ok(Box::from(State {
             players: new_players,
             board: self.board.clone(),
             deck: self.deck.clone(),
             ..*self
-        })
+        }))
     }
 
-    pub fn update_player(&self, new_player: Player) -> Result<State, StateError> {
+    pub fn update_player(&self, new_player: Player) -> Result<Box<State>, StateError> {
         let old_player_index = self.players.iter()
             .position(|p| p.id == new_player.id)
             .ok_or(StateError::PlayerNotFound{ player_id: new_player.id })?;
@@ -135,21 +135,21 @@ impl State {
         let mut new_players = self.players.clone();
         new_players[old_player_index] = new_player;
 
-        Ok(State {
+        Ok(Box::from(State {
             players: new_players,
             board: self.board.clone(),
             deck: self.deck.clone(),
             ..*self
-        })
+        }))
     }
 
-    pub fn set_deck(&self, new_deck: ProgramCardDeck) -> State {
-        State {
+    pub fn set_deck(&self, new_deck: ProgramCardDeck) -> Box<State> {
+        Box::from(State {
             deck: new_deck,
             players: self.players.clone(),
             board: self.board.clone(),
             ..*self
-        }
+        })
     }
 
     pub fn set_phase(&self, new_phase: RoundPhase) -> Box<State> {

@@ -72,7 +72,7 @@ impl ExecutionEngine {
             let robot = state.get_robot_for(player_id).ok_or(ExecutionEngineError::RobotNotFound{ player_id })?;
             let new_direction = Self::map_move_to_direction_change(smove, robot.direction);
             let new_robot = robot.set_direction(new_direction);
-            Ok(Box::from(state.update_robot(new_robot)?))
+            Ok(state.update_robot(new_robot)?)
         } else {
             let robot = state.get_robot_for(player_id).ok_or(ExecutionEngineError::RobotNotFound{ player_id })?;
             let direction = Self::map_move_to_direction_change(smove, robot.direction);
@@ -139,7 +139,7 @@ impl ExecutionEngine {
 
             // Actual move TODO Should field do this, too?
             let new_robot = robot.set_position(to);
-            state = Box::from(state.update_robot(new_robot)?);
+            state = state.update_robot(new_robot)?;
             push_stack.pop();
         }
         Ok(state)
@@ -236,7 +236,7 @@ mod test {
     #[test]
     fn test_simple_move() -> Result<(), Box<ExecutionEngineError>> {
         let (board, players) = create_state();
-        let state = Box::from(State::new(board, players));
+        let state = State::new_with_random_deck(board, players);
         
         let engine = ExecutionEngine::default();
         let actual_state = engine.run_register_phase(state)?;
@@ -302,7 +302,7 @@ mod test {
         let players = vec![player1, player2];
 
         // State
-        let state = Box::from(State::new(board, players));
+        let state = State::new_with_random_deck(board, players);
         
         let engine = ExecutionEngine::default();
         let actual_state = engine.run_register_phase(state)?;

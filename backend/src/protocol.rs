@@ -25,10 +25,7 @@ pub enum ProtocolError {
 
 impl player_input::PlayerInput {
     pub fn parse_from(player_input: Option<PlayerInput>) -> Result<player_input::PlayerInput, ProtocolError> {
-        if player_input.is_none() {
-            return Err(ProtocolError::MissingPlayerInput{});
-        }
-        let player_input = player_input.unwrap();
+        let player_input = player_input.ok_or(ProtocolError::MissingPlayerInput{})?;
 
         let move_cards: Result<Vec<state::MoveCard>, _> = player_input.move_cards.iter()
             .map(state::MoveCard::parse_from)
@@ -52,17 +49,13 @@ impl state::MoveCard {
 
 impl execution_engine::ESimpleMove {
     fn parse_from(mmove_i32: i32) -> Result<execution_engine::ESimpleMove, ProtocolError> {
-        let mmove = match ESimpleMove::from_i32(mmove_i32) {
-            None => {
-                return Err(ProtocolError::WrongEnumValue{
-                    enum_name: String::from("ESimpleMove"),
-                    value: mmove_i32,
-                });
-            },
-            Some(m) => m,
-        };
-
-        Ok(execution_engine::ESimpleMove::from(mmove))
+        match ESimpleMove::from_i32(mmove_i32) {
+            None => Err(ProtocolError::WrongEnumValue{
+                enum_name: String::from("ESimpleMove"),
+                value: mmove_i32,
+            }),
+            Some(m) => Ok(execution_engine::ESimpleMove::from(m)),
+        }
     }
 }
 

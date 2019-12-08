@@ -7,6 +7,8 @@ use super::cards::*;
 
 pub type PlayerID = u32;
 
+pub const REGISTER_COUNT: usize = 5;
+
 #[derive(Debug, Clone)]
 pub struct Player {
     pub id: PlayerID,

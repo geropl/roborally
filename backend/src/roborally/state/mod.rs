@@ -24,11 +24,41 @@ pub enum StateError {
     },
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RoundPhase {
+    /**
+     * Cards are dealt + some maintenance stuff (power down)
+     */
+    PREPARATION,
+
+    /**
+     * The program phase: players fill their registers with their dealt cards and may announce power down
+     */
+    PROGRAM,
+
+    /**
+     * The robots are moved according to the users programs and all resulting effects are executed
+     */
+    EXECUTE,
+
+    /**
+     * Robots are repaired and option cards are drawn and executed
+     */
+    CLEANUP
+}
+
+impl Default for RoundPhase {
+    fn default() -> Self {
+        RoundPhase::PREPARATION
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct State {
     pub board: Arc<Board>,
     pub players: Vec<Player>,
     pub deck: ProgramCardDeck,
+    pub phase: RoundPhase,
 }
 
 impl State {
@@ -39,6 +69,7 @@ impl State {
             board: Arc::new(board),
             players: players.into_iter().collect(),
             deck: gen.generate_program_deck(config),
+            phase: RoundPhase::PREPARATION,
         }
     }
 
@@ -73,6 +104,7 @@ impl State {
             players: new_players,
             board: self.board.clone(),
             deck: self.deck.clone(),
+            ..*self
         })
     }
 
@@ -91,6 +123,7 @@ impl State {
             players: new_players,
             board: self.board.clone(),
             deck: self.deck.clone(),
+            ..*self
         })
     }
 
@@ -106,20 +139,46 @@ impl State {
             players: new_players,
             board: self.board.clone(),
             deck: self.deck.clone(),
+            ..*self
         })
     }
 
     pub fn set_deck(&self, new_deck: ProgramCardDeck) -> State {
         State {
+            deck: new_deck,
             players: self.players.clone(),
             board: self.board.clone(),
-            deck: new_deck,
+            ..*self
         }
+    }
+
+    pub fn set_phase(&self, new_phase: RoundPhase) -> Box<State> {
+        Box::from(State {
+            phase: new_phase,
+            players: self.players.clone(),
+            board: self.board.clone(),
+            deck: self.deck.clone(),
+        })
     }
 
     pub fn find_robot_at(&self, pos: &Position) -> Option<&Robot> {
         self.players.iter()
             .find(|p| p.robot.position == *pos)
             .map(|p| &p.robot)
+    }
+    
+    pub fn get_player_cards_sorted_by_priority(&self) -> Vec<(PlayerID, MoveCard)> {
+        let mut moves: Vec<(PlayerID, MoveCard)> = self.players.iter()
+            .map(|p| {
+                let mut mcs: Vec<(PlayerID, MoveCard)> = vec![];
+                for r in &p.registers {
+                    mcs.push((p.id, r.move_card.clone()));
+                }
+                mcs
+            })
+            .flatten()
+            .collect();
+        moves.sort_by(|a, b| a.1.priority.partial_cmp(&b.1.priority).unwrap());
+        moves
     }
 }

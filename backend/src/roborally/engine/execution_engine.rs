@@ -6,8 +6,6 @@ use failure::Fail;
 
 use crate::roborally::state::{ State, StateError, PlayerID, RobotID, EDirection, EConnection, Position };
 
-use super::move_inputs::*;
-
 #[derive(Debug, Fail)]
 pub enum ExecutionEngineError {
     #[fail(display = "Robot not found for player with id {}", player_id)]
@@ -39,12 +37,11 @@ impl ExecutionEngine {
         Self::default()
     }
 
-    // TODO MoveInputs is a temporary fake to have sth running without a full engine. Merges into state afterwards
-    pub fn run_register_phase(&self, state: Box<State>, inputs: &MoveInputs) -> Result<Box<State>, ExecutionEngineError> {
+    pub fn run_register_phase(&self, state: Box<State>) -> Result<Box<State>, ExecutionEngineError> {
         // Phase:
         // 1. Robots move, in order of Priority
         let mut state = state;
-        let player_move_cards = inputs.get_player_cards_sorted_by_priority();
+        let player_move_cards = state.get_player_cards_sorted_by_priority();
         for player_card in player_move_cards {
             let tmove = player_card.1.tmove;
             state = self.perform_move(state, player_card.0, tmove)?;
@@ -214,46 +211,35 @@ impl fmt::Debug for dyn TMove {
 #[cfg(test)]
 mod test {
     use crate::roborally::state::*;
-    //use crate::roborally::engine::move_inputs::*;
     use crate::roborally::engine::execution_engine::*;
 
-    fn create_state() -> (Board, Vec<Player>, MoveInputs) {
+    fn create_state() -> (Board, Vec<Player>) {
         // State
         let robot1 = RobotBuilder::default()
             .id(0)
             .position(Position::new(2, 2))
             .direction(EDirection::NORTH)
             .build().unwrap();
-        let player1 = Player::new(0, robot1);
+        let player1 = Player::new_with_move(0, robot1, MoveCard::new_from_moves(1, &[ESimpleMove::Forward]));
 
         let robot2 = RobotBuilder::default()
             .id(1)
             .position(Position::new(4, 4))
             .direction(EDirection::EAST)
             .build().unwrap();
-        let player2 = Player::new(1, robot2);
-
-        // Inputs
-        let move_card1 = MoveCard::new_from_moves(1, &[ESimpleMove::Forward]);
-        let move_input1 = MoveInput::new(player1.id, &[move_card1]);
-
-        let move_card2 = MoveCard::new_from_moves(2, &[ESimpleMove::TurnLeft, ESimpleMove::Forward]);
-        let move_input2 = MoveInput::new(player2.id, &[move_card2]);
-        
-        let ins = vec![move_input1, move_input2];
-        let inputs = MoveInputs::from(ins.as_slice());
+        let player2 = Player::new_with_move(1, robot2, MoveCard::new_from_moves(2, &[ESimpleMove::TurnLeft, ESimpleMove::Forward]));
 
         let board = Board::new_empty_board(5, 5);
-        (board, vec![player1, player2], inputs)
+        (board, vec![player1, player2])
     }
 
     #[test]
     fn test_simple_move() -> Result<(), Box<ExecutionEngineError>> {
-        let (board, players, inputs) = create_state();
+        let (board, players) = create_state();
         let state = Box::from(State::new(board, players));
         
         let engine = ExecutionEngine::default();
-        let actual_state = engine.run_register_phase(state, &inputs)?;
+        let actual_state = engine.run_register_phase(state)?;
 
         let actual_robot1 = actual_state.get_robot_for(0).unwrap();
         let actual_robot2 = actual_state.get_robot_for(1).unwrap();
@@ -303,7 +289,7 @@ mod test {
             .position(robot1_pos.clone())
             .direction(EDirection::NORTH)
             .build().unwrap();
-        let player1 = Player::new(player_id1, robot1);
+        let player1 = Player::new_with_move(player_id1, robot1, MoveCard::new_from_moves(1, &[ESimpleMove::Forward]));
 
         let player_id2: u32 = 1;
         let robot2_pos = Position::new(1, 0);
@@ -312,24 +298,14 @@ mod test {
             .position(robot2_pos)
             .direction(EDirection::WEST)
             .build().unwrap();
-        let player2 = Player::new(player_id2, robot2);
+        let player2 = Player::new_with_move(player_id2, robot2, MoveCard::new_from_moves(2, &[ESimpleMove::Forward]));
         let players = vec![player1, player2];
-
-        // Inputs
-        let move_card1 = MoveCard::new_from_moves(1, &[ESimpleMove::Forward]);
-        let move_input1 = MoveInput::new(player_id1, &[move_card1]);
-
-        let move_card2 = MoveCard::new_from_moves(2, &[ESimpleMove::Forward]);
-        let move_input2 = MoveInput::new(player_id2, &[move_card2]);
-
-        let ins = vec![move_input1, move_input2];
-        let inputs = MoveInputs::from(ins.as_slice());
 
         // State
         let state = Box::from(State::new(board, players));
         
         let engine = ExecutionEngine::default();
-        let actual_state = engine.run_register_phase(state, &inputs)?;
+        let actual_state = engine.run_register_phase(state)?;
 
         let actual_robot1 = actual_state.get_robot_for(0).unwrap();
         let actual_robot2 = actual_state.get_robot_for(1).unwrap();

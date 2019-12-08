@@ -1,7 +1,7 @@
 use failure::Fail;
 
 use crate::roborally::state;
-use crate::roborally::engine::move_inputs;
+use crate::roborally::engine::player_input;
 use crate::roborally::engine::execution_engine;
 
 tonic::include_proto!("protocol");
@@ -23,8 +23,8 @@ pub enum ProtocolError {
     },
 }
 
-impl move_inputs::MoveInput {
-    pub fn parse_from(player_input: Option<PlayerInput>) -> Result<move_inputs::MoveInput, ProtocolError> {
+impl player_input::PlayerInput {
+    pub fn parse_from(player_input: Option<PlayerInput>) -> Result<player_input::PlayerInput, ProtocolError> {
         if player_input.is_none() {
             return Err(ProtocolError::MissingPlayerInput{});
         }
@@ -33,7 +33,7 @@ impl move_inputs::MoveInput {
         let move_cards: Result<Vec<state::MoveCard>, _> = player_input.move_cards.iter()
             .map(state::MoveCard::parse_from)
             .collect();
-        Ok(move_inputs::MoveInput {
+        Ok(player_input::PlayerInput {
             player_id: player_input.player_id,
             move_cards: move_cards?, 
         })

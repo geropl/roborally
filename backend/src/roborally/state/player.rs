@@ -25,6 +25,18 @@ impl Player {
         }
     }
 
+    /**
+     * For test purposes
+     */
+    pub fn new_with_move(id: PlayerID, robot: Robot, move_card: MoveCard) -> Player {
+        Player {
+            id,
+            robot,
+            registers: vec![Register{ move_card, locked: false }],
+            program_card_deck: vec![],
+        }
+    }
+
     pub fn set_program_card_deck(&self, program_card_deck: Vec<MoveCard>) -> Player {
         Player {
             robot: self.robot.clone(),

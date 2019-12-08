@@ -5,8 +5,10 @@ use crate::roborally::state::{
     PlayerID,
     EPoweredDown,
     StateError,
+    RoundPhase,
 };
 use super::execution_engine::{ ExecutionEngine };
+use super::player_input::{ PlayerInput };
 
 #[derive(Debug, Fail)]
 pub enum EngineError {
@@ -17,6 +19,11 @@ pub enum EngineError {
     #[fail(display = "Engine error: {}", msg)]
     GenericAlgorithmError {
         msg: String,
+    },
+    #[fail(display = "Invalid round phase! Expected: {:?}, found: {:?}", expected, actual)]
+    InvalidRoundPhase {
+        expected: RoundPhase,
+        actual: RoundPhase,
     }
 }
 
@@ -27,20 +34,20 @@ impl From<StateError> for EngineError {
     }
 }
 
-pub enum RoundPhase {
-    PREPARATION,
-    PROGRAM,
-    EXECUTE,
-    CLEANUP
-}
-
 pub struct RoundEngine {
     pub exec_engine: ExecutionEngine,
 }
 
 impl RoundEngine {
+    pub fn new() -> Self {
+        RoundEngine {
+            exec_engine: ExecutionEngine::new()
+        }
+    }
+    
     pub fn run_round_initialization(&self, state: Box<State>) -> Result<Box<State>, EngineError> {
         let mut state = state;
+        assert_phase(&state, RoundPhase::PREPARATION)?;
 
         // 0. Prepare
         //  - powered down robot:
@@ -73,7 +80,9 @@ impl RoundEngine {
         Ok(state)
     }
 
-    pub fn set_player_input(&self, state: Box<State>) -> Result<Box<State>, EngineError> {
+    pub fn set_player_input(&self, state: Box<State>, input: &PlayerInput) -> Result<Box<State>, EngineError> {
+        assert_phase(&state, RoundPhase::PROGRAM)?;
+
         // 2. Program registers + 3. Announce Power Down
         //  - input:
         //    - registers
@@ -81,14 +90,21 @@ impl RoundEngine {
         //       - leave powered down?
         //      else
         //       - player with damaged robots may announce power down _for next turn_
-        Err(EngineError::Invalid{ player_id: 0 })
+
+        if all_players_provided_input(&state) {
+            Ok(state.set_phase(RoundPhase::EXECUTE))
+        } else {
+            Ok(state)
+        }
     }
 
     pub fn run_execute(&self, state: Box<State>) -> Result<Box<State>, EngineError> {
         let mut state = state;
+        assert_phase(&state, RoundPhase::EXECUTE)?;
 
-        // 4. Complete Registers (register phase)
+        // 4. Register execution phase
         //state = self.exec_engine.run_register_phase(state)?;
+        state = state.set_phase(RoundPhase::CLEANUP);
 
         // 5. Cleanup
         //  - repairs and upgrades:
@@ -97,6 +113,20 @@ impl RoundEngine {
         //  - discard all program cards from registers that aren't locked
         // TODO When to check for death?
 
-        Err(EngineError::Invalid{ player_id: 0 })
+        Ok(state.set_phase(RoundPhase::PREPARATION))
     }
+}
+
+fn all_players_provided_input(state: &Box<State>) -> bool {
+    false   // TODO implement
+}
+
+fn assert_phase(state: &Box<State>, expected: RoundPhase) -> Result<(), EngineError> {
+    if state.phase != expected {
+        return Err(EngineError::InvalidRoundPhase{
+            expected,
+            actual: state.phase
+        });
+    }
+    Ok(())
 }

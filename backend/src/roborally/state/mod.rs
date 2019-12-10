@@ -22,6 +22,10 @@ pub enum StateError {
     PlayerNotFound {
         player_id: PlayerID,
     },
+    #[fail(display = "Register program card not set: {}", player_id)]
+    EmptyProgramRegister {
+        player_id: PlayerID,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -64,7 +68,7 @@ pub struct State {
 impl State {
     pub fn new_with_random_deck(board: Board, players: Vec<Player>) -> Box<State> {
         let config = ProgramCardDeckConfig::default();
-        let gen = ProgramCardDeckGenerator::new();
+        let mut gen = ProgramCardDeckGenerator::new();
         Box::from(State {
             board: Arc::new(board),
             players: players.into_iter().collect(),
@@ -86,26 +90,10 @@ impl State {
             .ok_or(StateError::RobotNotFoundID{ robot_id })
     }
 
-    pub fn update_robot_fn<T>(&self, robot_id: RobotID, transform: T) -> Result<State, StateError>
-        where T: Fn(Robot) -> Robot {
-        let old_player_index = self.players.iter()
-            .position(|p| p.robot.id == robot_id)
-            .ok_or(StateError::RobotNotFoundID{ robot_id })?;
-
-        let mut new_players = self.players.clone();
-        let old_player = new_players[old_player_index].clone();
-        let new_robot = transform(old_player.robot);
-        new_players[old_player_index] = Player {
-            robot: new_robot,
-            ..old_player
-        };
-
-        Ok(State {
-            players: new_players,
-            board: self.board.clone(),
-            deck: self.deck.clone(),
-            ..*self
-        })
+    pub fn get_player_or_fail(&self, player_id: PlayerID) -> Result<&Player, StateError> {
+        self.players.iter()
+            .find(|p| p.id == player_id)
+            .ok_or(StateError::PlayerNotFound{ player_id })
     }
 
     pub fn update_robot(&self, new_robot: Robot) -> Result<Box<State>, StateError> {
@@ -167,18 +155,17 @@ impl State {
             .map(|p| &p.robot)
     }
     
-    pub fn get_player_cards_sorted_by_priority(&self) -> Vec<(PlayerID, MoveCard)> {
-        let mut moves: Vec<(PlayerID, MoveCard)> = self.players.iter()
-            .map(|p| {
-                let mut mcs: Vec<(PlayerID, MoveCard)> = vec![];
-                for r in &p.registers {
-                    mcs.push((p.id, r.move_card.clone()));
+    pub fn get_player_cards_sorted_by_priority(&self) -> Result<Vec<(PlayerID, MoveCard)>, StateError> {
+        let mut moves = Vec::with_capacity(self.players.len() * REGISTER_COUNT);
+        for p in &self.players {
+            for r in &p.registers {
+                if r.move_card.is_none() {
+                    return Err(StateError::EmptyProgramRegister{ player_id: p.id });
                 }
-                mcs
-            })
-            .flatten()
-            .collect();
+                moves.push((p.id, r.move_card.clone().unwrap()));
+            }
+        }
         moves.sort_by(|a, b| a.1.priority.partial_cmp(&b.1.priority).unwrap());
-        moves
+        Ok(moves)
     }
 }

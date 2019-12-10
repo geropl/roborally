@@ -13,9 +13,10 @@ use super::player_input::{ PlayerInput };
 
 #[derive(Debug, Fail)]
 pub enum EngineError {
-    #[fail(display = "Invalid player id: {}", player_id)]
-    Invalid {
+    #[fail(display = "Invalid input for player {}: {}", player_id, msg)]
+    InvalidPlayerInput {
         player_id: PlayerID,
+        msg: String,
     },
     #[fail(display = "Engine error: {}", msg)]
     GenericAlgorithmError {
@@ -98,7 +99,21 @@ impl RoundEngine {
         //       - leave powered down?
         //      else
         //       - player with damaged robots may announce power down _for next turn_
-        
+        // TODO Power down
+        let player = state.get_player_or_fail(input.player_id)?;
+        let unlocked_registers_count = player.count_unlocked_registers();
+        if unlocked_registers_count != input.move_cards.len() {
+            return Err(EngineError::InvalidPlayerInput {
+                player_id: input.player_id,
+                msg: "Got more program cards than unlocked registers!".to_string(),
+            });
+        }
+
+        let mut new_player = player.clone();
+        for i in 0..input.move_cards.len() {
+            new_player.registers[i].move_card = Some(input.move_cards[i].clone());
+        }
+        state = state.update_player(new_player)?;
 
         if all_players_provided_input(&state) {
             state = state.set_phase(RoundPhase::EXECUTE)

@@ -1,6 +1,6 @@
 use std::slice::Iter;
-
 use std::fmt;
+use std::collections::HashSet;
 
 use crate::roborally::engine::execution_engine::{ ESimpleMove, TMove };
 
@@ -46,12 +46,41 @@ impl ProgramCardDeckGenerator {
         }
     }
 
-    pub fn generate_program_deck(&self, config: ProgramCardDeckConfig) -> ProgramCardDeck {
+    pub fn generate_program_deck(&mut self, config: ProgramCardDeckConfig) -> ProgramCardDeck {
         let mut cards = Vec::with_capacity(config.card_count() as usize);
 
-        // TODO Unique priorities
-        for _ in 1..config.count_1_move {
-            cards.push(MoveCard::new_from_move(0, ESimpleMove::Forward));
+        let mut priorities: HashSet<u32> = HashSet::new();
+        for _ in 0..config.card_count() {
+            loop {
+                use rand::Rng;
+                let prio = self.rng.gen_range(1, 1001);
+                if priorities.insert(prio) {
+                    break;
+                }
+            }
+        }
+        let mut it = priorities.into_iter();
+
+        for _ in 0..config.count_1_move {
+            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::Forward));
+        }
+        for _ in 0..config.count_2_move {
+            cards.push(MoveCard::new_from_moves(it.next().unwrap(), &[ESimpleMove::Forward, ESimpleMove::Forward]));
+        }
+        for _ in 0..config.count_3_move {
+            cards.push(MoveCard::new_from_moves(it.next().unwrap(), &[ESimpleMove::Forward, ESimpleMove::Forward, ESimpleMove::Forward]));
+        }
+        for _ in 0..config.count_back_up {
+            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::Backward));
+        }
+        for _ in 0..config.count_turn_left {
+            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::TurnLeft));
+        }
+        for _ in 0..config.count_turn_right {
+            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::TurnRight));
+        }
+        for _ in 0..config.count_uturn {
+            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::UTurn));
         }
         ProgramCardDeck { cards }
     }

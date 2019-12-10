@@ -134,7 +134,15 @@ impl RoundEngine {
         //  - TODO repairs and upgrades:
         //    - single-wrench: -1 damage token
         //    - crossed-wrench: -1 damage token + option card
-        //  - TODO discard all program cards from registers that aren't locked
+
+        //  - discard all program cards from registers that aren't locked
+        for p in &state.players {
+            let (cards, new_player) = p.take_program_cards_from_unlocked_registers();
+            let new_deck = state.deck.add_cards(cards);
+            state = state.set_deck(new_deck);
+            state = state.update_player(new_player)?;
+        }
+
         // TODO When to check for death?
 
         Ok(state.set_phase(RoundPhase::PREPARATION))

@@ -51,6 +51,15 @@ impl Player {
         }
     }
 
+    pub fn take_program_cards_from_unlocked_registers(&self) -> (Vec<MoveCard>, Player) {
+        let mut cards = vec![];
+        let mut new_player = Player { ..*self };
+        for r in new_player.registers {
+            cards.push(r.move_card.take().unwrap());
+        }
+        (cards, new_player)
+    }
+
     pub fn count_unlocked_registers(&self) -> usize {
         self.registers.iter()
             .filter(|r| !r.locked)

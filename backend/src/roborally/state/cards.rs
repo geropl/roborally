@@ -103,6 +103,14 @@ impl ProgramCardDeck {
     //         cards: new_cards,
     //     }
     // }
+    
+    pub fn add_cards(&self, new_cards: Vec<MoveCard>) -> ProgramCardDeck {
+        let mut cards = self.cards.clone();
+        cards.push(new_cards);
+        ProgramCardDeck {
+            cards,
+        }
+    }
 
     pub fn take_random_cards(&self, amount: u32) -> (ProgramCardDeck, Vec<MoveCard>) {
         use rand::seq::index;

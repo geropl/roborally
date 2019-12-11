@@ -4,7 +4,7 @@ use std::fmt;
 
 use failure::Fail;
 
-use crate::roborally::state::{ State, StateError, PlayerID, RobotID, EDirection, EConnection, Position };
+use crate::roborally::state::{ State, StateError, PlayerID, RobotID, EDirection, EConnection, Position, REGISTER_COUNT };
 
 #[derive(Debug, Fail)]
 pub enum ExecutionEngineError {
@@ -41,10 +41,12 @@ impl ExecutionEngine {
         // Phase:
         // 1. Robots move, in order of Priority
         let mut state = state;
-        let player_move_cards = state.get_player_cards_sorted_by_priority()?;
-        for player_card in player_move_cards {
-            let tmove = player_card.1.tmove;
-            state = self.perform_move(state, player_card.0, tmove)?;
+        for i in 0..REGISTER_COUNT {
+            let player_move_cards = state.get_register_cards_sorted_by_priority(i)?;
+            for player_card in player_move_cards {
+                let tmove = player_card.1.tmove;
+                state = self.perform_move(state, player_card.0, tmove)?;
+            }
         }
 
         // 2. Board elements move:

@@ -106,7 +106,7 @@ impl ProgramCardDeck {
     
     pub fn add_cards(&self, new_cards: Vec<MoveCard>) -> ProgramCardDeck {
         let mut cards = self.cards.clone();
-        cards.push(new_cards);
+        cards.extend(new_cards);
         ProgramCardDeck {
             cards,
         }

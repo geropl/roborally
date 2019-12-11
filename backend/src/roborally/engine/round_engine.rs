@@ -18,6 +18,10 @@ pub enum EngineError {
         player_id: PlayerID,
         msg: String,
     },
+    #[fail(display = "Double input for player {}!", player_id)]
+    DoublePlayerInput {
+        player_id: PlayerID,
+    },
     #[fail(display = "Engine error: {}", msg)]
     GenericAlgorithmError {
         msg: String,
@@ -111,7 +115,13 @@ impl RoundEngine {
 
         let mut new_player = player.clone();
         for i in 0..input.move_cards.len() {
-            new_player.registers[i].move_card = Some(input.move_cards[i].clone());
+            let register = &mut new_player.registers[i];
+            if register.move_card.is_some() {
+                return Err(EngineError::DoublePlayerInput {
+                    player_id: input.player_id,
+                });
+            }
+            register.move_card = Some(input.move_cards[i].clone());
         }
         state = state.update_player(new_player)?;
 
@@ -135,8 +145,12 @@ impl RoundEngine {
         //    - single-wrench: -1 damage token
         //    - crossed-wrench: -1 damage token + option card
 
+        // adjust registers locks according to damage
+        state = state.lock_registers_according_to_damage();
+
         //  - discard all program cards from registers that aren't locked
-        for p in &state.players {
+        for i in 0..state.players.len() {
+            let p = &state.players[i];
             let (cards, new_player) = p.take_program_cards_from_unlocked_registers();
             let new_deck = state.deck.add_cards(cards);
             state = state.set_deck(new_deck);

@@ -53,8 +53,11 @@ impl Player {
 
     pub fn take_program_cards_from_unlocked_registers(&self) -> (Vec<MoveCard>, Player) {
         let mut cards = vec![];
-        let mut new_player = Player { ..*self };
-        for r in new_player.registers {
+        let mut new_player = self.clone();
+        for r in &mut new_player.registers {
+            if r.locked {
+                continue;
+            }
             cards.push(r.move_card.take().unwrap());
         }
         (cards, new_player)

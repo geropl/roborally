@@ -154,16 +154,26 @@ impl State {
             .find(|p| p.robot.position == *pos)
             .map(|p| &p.robot)
     }
-    
-    pub fn get_player_cards_sorted_by_priority(&self) -> Result<Vec<(PlayerID, MoveCard)>, StateError> {
-        let mut moves = Vec::with_capacity(self.players.len() * REGISTER_COUNT);
-        for p in &self.players {
-            for r in &p.registers {
-                if r.move_card.is_none() {
-                    return Err(StateError::EmptyProgramRegister{ player_id: p.id });
-                }
-                moves.push((p.id, r.move_card.clone().unwrap()));
+
+    pub fn lock_registers_according_to_damage(&self) -> Box<State> {
+        let mut state = Box::from(self.clone());
+        for p in &mut state.players {
+            for i in 0..REGISTER_COUNT {
+                let mut r = p.registers.get_mut(i).unwrap();
+                r.locked = i >= REGISTER_COUNT + 4 - (p.robot.damage as usize);  // 5 damage -> lock 5; damage -> lock 5,4;
             }
+        }
+        state
+    }
+    
+    pub fn get_register_cards_sorted_by_priority(&self, register_index: usize) -> Result<Vec<(PlayerID, MoveCard)>, StateError> {
+        let mut moves = Vec::with_capacity(self.players.len());
+        for p in &self.players {
+            let register = &p.registers[register_index];
+            if register.move_card.is_none() {
+                return Err(StateError::EmptyProgramRegister{ player_id: p.id });
+            }
+            moves.push((p.id, register.move_card.clone().unwrap()));
         }
         moves.sort_by(|a, b| a.1.priority.partial_cmp(&b.1.priority).unwrap());
         Ok(moves)

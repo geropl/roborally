@@ -89,7 +89,7 @@ impl RoundEngine {
             state = state.set_deck(deck);
         }
 
-        Ok(state)
+        Ok(state.set_phase(RoundPhase::PROGRAM))
     }
 
     pub fn set_player_input(&self, state: Box<State>, input: &PlayerInput) -> Result<Box<State>, EngineError> {
@@ -109,7 +109,7 @@ impl RoundEngine {
         if unlocked_registers_count != input.move_cards.len() {
             return Err(EngineError::InvalidPlayerInput {
                 player_id: input.player_id,
-                msg: "Got more program cards than unlocked registers!".to_string(),
+                msg: format!("Got more program cards ({}) than unlocked registers ({})!", input.move_cards.len(), unlocked_registers_count),
             });
         }
 
@@ -126,7 +126,7 @@ impl RoundEngine {
         state = state.update_player(new_player)?;
 
         if all_players_provided_input(&state) {
-            state = state.set_phase(RoundPhase::EXECUTE)
+            state = state.set_phase(RoundPhase::EXECUTE);
         }
 
         Ok(state)
@@ -165,7 +165,8 @@ impl RoundEngine {
 
 fn all_players_provided_input(state: &State) -> bool {
     state.players.iter()
-        .all(|p| p.registers.len() == REGISTER_COUNT)
+        .all(|p| p.registers.iter()
+            .all(|r| r.move_card.is_some()))
 }
 
 fn assert_phase(state: &State, expected: RoundPhase) -> Result<(), EngineError> {

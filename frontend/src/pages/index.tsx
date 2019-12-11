@@ -4,7 +4,7 @@ import * as URL from "url";
 import { GetGameStateRequest, StartGameRequest, StartGameResponse, GetGameStateResponse, SetRoundInputRequest, SetRoundInputResponse } from "ts-client/lib/protocol_pb";
 import { RoboRallyGameClient } from "ts-client/lib/ProtocolServiceClientPb";
 import { BoardView } from "../components/board/board-view";
-import { MoveCardDebugInput, DebugMoveCardState } from "../components/move-card-debug-input";
+import { MoveCardDebugInput, Register } from "../components/move-card-debug-input";
 import { GameState } from "ts-client/lib/gamestate_pb";
 import { PlayerInput, MoveCard, ESimpleMove, ESimpleMoveMap } from "ts-client/lib/inputs_pb";
 
@@ -27,7 +27,8 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
                     <BoardView />
                     <input type="button" value="StartGame" onClick={() => this.requestStartGame() } />
                     <input type="button" value="GetGameState" onClick={() => this.requestGameState() } />
-                    <MoveCardDebugInput onNewDebugInput={(rs) => this.setDebugInput(rs)}/>
+                    <MoveCardDebugInput playerId={0} onNewDebugInput={(playerId, rs) => this.setDebugInput(playerId, rs)}/>
+                    <MoveCardDebugInput playerId={1} onNewDebugInput={(playerId, rs) => this.setDebugInput(playerId, rs)}/>
                     <label id="output">{this.state && this.state.response || ""}</label>
                 </div>
             </div>
@@ -48,43 +49,76 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
         const request = new StartGameRequest();
 
         const client = this.getClient();
-        const response = await new Promise<StartGameResponse>((resolve, reject) => {
-            client.startGame(request, null, (err: Error, response: StartGameResponse) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve(response);
+        try {
+            const response = await new Promise<StartGameResponse>((resolve, reject) => {
+                client.startGame(request, null, (err: Error, response: StartGameResponse) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    resolve(response);
+                });
+                console.log("Sent StartGameRequest");
             });
-            console.log("Sent StartGameRequest");
-        });
-        this.onNewGameState(response.getState());
+            this.onNewGameState(response.getState());
+        } catch (err) {
+            console.error(err);
+        }
     }
 
     protected async requestGameState() {
         const gameStateRequest = new GetGameStateRequest();
 
         const client = this.getClient();
-        const response = await new Promise<GetGameStateResponse>((resolve, reject) => {
-            client.getGameState(gameStateRequest, null, (err: Error, response: GetGameStateResponse) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve(response);
+        try {
+            const response = await new Promise<GetGameStateResponse>((resolve, reject) => {
+                client.getGameState(gameStateRequest, null, (err: Error, response: GetGameStateResponse) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    resolve(response);
+                });
             });
-        });
-        this.onNewGameState(response.getState());
+            this.onNewGameState(response.getState());
+        } catch (err) {
+            console.error(err);
+        }
     }
 
-    protected async setDebugInput(registers: DebugMoveCardState[]) {
+    protected async setDebugInput(playerId: number, registers: Register[]) {
         const setInputRequest = new SetRoundInputRequest();
         const playerInput = new PlayerInput();
-        playerInput.setPlayerId(0);
+        playerInput.setPlayerId(playerId);
         const moveCards = registers.map(r => {
             const moveCard = new MoveCard();
             moveCard.setPriority(r.priority || NaN);    // Provokes error on backend
-            const moves: ESimpleMoveMap[keyof ESimpleMoveMap][] = (r.moves || []).map(m => {
+            const moves = this.registerToMoves(r);
+            moveCard.setMovesList(moves);
+            return moveCard;
+        })
+        playerInput.setMoveCardsList(moveCards);
+        setInputRequest.setPlayerInput(playerInput);
+
+        const client = this.getClient();
+        try {
+            const response = await new Promise<SetRoundInputResponse>((resolve, reject) => {
+                client.setRoundInput(setInputRequest, null, (err: Error, response: SetRoundInputResponse) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    resolve(response);
+                });
+            });
+            this.onNewGameState(response.getState());
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    protected registerToMoves(r: Register): ESimpleMoveMap[keyof ESimpleMoveMap][] {
+        const moves: ESimpleMoveMap[keyof ESimpleMoveMap][] = (r.moves || []).map(m => {
                 let move = -1;
                 switch (m) {
                     case "backward":
@@ -110,24 +144,8 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
                         break;
                 }
                 return move as ESimpleMoveMap[keyof ESimpleMoveMap];
-            })
-            moveCard.setMovesList(moves);
-            return moveCard;
-        })
-        playerInput.setMoveCardsList(moveCards);
-        setInputRequest.setPlayerInput(playerInput);
-
-        const client = this.getClient();
-        const response = await new Promise<SetRoundInputResponse>((resolve, reject) => {
-            client.setRoundInput(setInputRequest, null, (err: Error, response: SetRoundInputResponse) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve(response);
             });
-        });
-        this.onNewGameState(response.getState());
+        return moves;
     }
 
     protected getClient() {

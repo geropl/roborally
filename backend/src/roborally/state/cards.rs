@@ -118,9 +118,11 @@ impl ProgramCardDeck {
         let amount = amount as usize;
         let mut cards = self.cards.clone();
         let mut rng = rand::thread_rng();
-        let indeces = index::sample(&mut rng, cards.len(), amount).into_vec();
+        let mut indeces = index::sample(&mut rng, cards.len(), amount).into_vec();
+        indeces.sort();
 
         let mut chosen_cards = Vec::with_capacity(amount);
+        indeces.reverse();  // important because we want to remove items, which change all following indexes
         for i in indeces {
             chosen_cards.push(cards.remove(i));
         }

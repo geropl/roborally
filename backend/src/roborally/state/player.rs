@@ -22,7 +22,7 @@ impl Player {
         Player {
             id,
             robot,
-            registers: Vec::with_capacity(REGISTER_COUNT),
+            registers: (0..REGISTER_COUNT).map(|_| Register::default()).collect(),
             program_card_deck: vec![],
         }
     }
@@ -64,9 +64,16 @@ impl Player {
     }
 
     pub fn count_unlocked_registers(&self) -> usize {
-        self.registers.iter()
-            .filter(|r| !r.locked)
-            .count()
+        let mut c: usize = 0;
+        for r in &self.registers {
+            if !r.locked {
+                c += 1;
+            }
+        }
+        c
+        // self.registers.iter()
+        //     .filter(|r| !r.locked)
+        //     .count()
     }
 }
 
@@ -126,7 +133,7 @@ impl Default for EPoweredDown {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Register {
     pub move_card: Option<MoveCard>,
     pub locked: bool,

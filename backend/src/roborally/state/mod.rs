@@ -7,10 +7,12 @@ use std::sync::Arc;
 mod cards;
 mod board;
 mod player;
+mod board_parser;
 
 pub use board::*;
 pub use cards::*;
 pub use player::*;
+pub use board_parser::*;
 
 #[derive(Debug, Fail)]
 pub enum StateError {

@@ -30,6 +30,7 @@ impl Player {
     /**
      * For test purposes
      */
+    #[cfg(test)]
     pub fn new_with_move(id: PlayerID, robot: Robot, move_card: MoveCard) -> Player {
         Player {
             id,

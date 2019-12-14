@@ -165,7 +165,7 @@ impl From<state::EDirection> for EDirection {
 impl From<state::ETileType> for ETileType {
     fn from(ttype: state::ETileType) -> ETileType {
         match ttype {
-            state::ETileType::Free => ETileType::Free,
+            state::ETileType::Regular => ETileType::Regular,
             state::ETileType::NoTile => ETileType::NoTile,
         }
     }

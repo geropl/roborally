@@ -6,7 +6,6 @@ use crate::roborally::state::{
     EPoweredDown,
     StateError,
     RoundPhase,
-    REGISTER_COUNT,
 };
 use super::execution_engine::{ ExecutionEngine, ExecutionEngineError };
 use super::player_input::{ PlayerInput };
@@ -121,7 +120,7 @@ impl RoundEngine {
                     player_id: input.player_id,
                 });
             }
-            register.move_card = Some(input.move_cards[i].clone());
+            register.move_card = Some(input.move_cards[i].clone()); // TODO Check if the card is present in the player deck!
         }
         state = state.update_player(new_player)?;
 
@@ -137,7 +136,7 @@ impl RoundEngine {
         let mut state = state;
 
         // 4. Register execution phase
-        state = self.exec_engine.run_register_phase(state)?;
+        state = self.exec_engine.execute_registers(state)?;
         state = state.set_phase(RoundPhase::CLEANUP);
 
         // 5. Cleanup

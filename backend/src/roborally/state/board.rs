@@ -9,68 +9,44 @@ use derive_builder::Builder;
 #[derive(Debug, Default)]
 pub struct Board {
     pub tiles: Vec<Tile>,
-    pub size_x: u32,
-    pub size_y: u32,
+    pub size_x: i32,
+    pub size_y: i32,
 }
 
 impl Board {
-    pub fn new_empty_board(size_x: u32, size_y: u32) -> Board {
-        let mut board = Board {
-            tiles: Vec::with_capacity((size_x * size_y) as usize),
-            size_x,
-            size_y
-        };
-        board.fill_with_tiles(ETileType::Free);
-        board
+    pub fn load_board(name: &str) -> Result<Board, super::ParserError> {
+        super::load_board_by_name(name)
     }
 
-    pub fn fill_with_tiles(&mut self, ttype: ETileType) {
-        for x in 0..self.size_x {
-            for y in 0..self.size_y {
-                let position = Position::new(x, y);
-                let tile = TileBuilder::default()
-                    .position(position)
-                    .ttype(ttype)
-                    .walls(vec![])
-                    .build().unwrap();
-                self.tiles.push(tile);
-            }
-        }
-    }
-
-    pub fn get_neighbor_in(&self, pos: &Position, direction: EDirection) -> Option<EConnection> {
+    pub fn get_neighbor_in(&self, pos: &Position, direction: EDirection) -> EConnection {
         let new_pos = match direction {
-            EDirection::NORTH =>
-                Board::ensure_on_board(pos.y.overflowing_sub(1), self.size_y)
-                    .map(|n| pos.set_y(n)),
-            EDirection::SOUTH => 
-                Board::ensure_on_board(pos.y.overflowing_add(1), self.size_y)
-                    .map(|n| pos.set_y(n)),
-            EDirection::WEST => 
-                Board::ensure_on_board(pos.x.overflowing_sub(1), self.size_x)
-                    .map(|n| pos.set_x(n)),
-            EDirection::EAST => 
-                Board::ensure_on_board(pos.x.overflowing_add(1), self.size_x)
-                    .map(|n| pos.set_x(n)),
-        }?;
+            EDirection::NORTH => pos.set_y(pos.y - 1),
+            EDirection::SOUTH => pos.set_y(pos.y + 1),
+            EDirection::WEST => pos.set_x(pos.x - 1),
+            EDirection::EAST => pos.set_x(pos.x + 1),
+        };
 
         let old_tile = &self.tiles[self.tile_index(pos)];
-        let new_tile = &self.tiles[self.tile_index(&new_pos)];
+        let new_tile = if self.is_off_board(&new_pos) {
+            None
+        } else {
+            Some(&self.tiles[self.tile_index(&new_pos)])
+        };
         
-        if old_tile.walls.contains(&direction) || new_tile.walls.contains(&direction.opposite()) {
-            return Some(EConnection::Walled);
+        if old_tile.walls.contains(&direction)
+            // Can only check both sides if the other exists at all...
+            || (new_tile.is_some() && new_tile.unwrap().walls.contains(&direction.opposite())) {
+            return EConnection::Walled;
+        } else if self.is_off_board(&new_pos)
+            || (new_tile.is_some() && new_tile.unwrap().ttype == ETileType::NoTile) {
+            return EConnection::OffPlatform(new_pos);
         }
-        Some(EConnection::Free(new_pos))
+        EConnection::Free(new_pos)
     }
 
-    fn ensure_on_board((new_val, overflow): (u32, bool), max: u32) -> Option<u32> {
-        if overflow {
-            return None;
-        }
-        if new_val >= max {
-            return None;
-        }
-        Some(new_val)
+    fn is_off_board(&self, position: &Position) -> bool {
+        position.x < 0 || position.x >= self.size_x
+            || position.y < 0 || position.y >= self.size_y
     }
 
     fn tile_index(&self, pos: &Position) -> usize {
@@ -82,6 +58,7 @@ impl Board {
 pub enum EConnection {
     Free(Position),
     Walled,
+    OffPlatform(Position),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -93,6 +70,7 @@ pub enum EDirection {
 }
 
 impl EDirection {
+    pub const DIRECTIONS: [EDirection;  4] = [EDirection::NORTH, EDirection::EAST, EDirection::SOUTH, EDirection::WEST];
 
     pub fn turn_left(self) -> EDirection {
         self.turn(-1)
@@ -111,12 +89,10 @@ impl EDirection {
     }
 
     fn turn(self, offset: i8) -> EDirection {
-        static DIRECTIONS: [EDirection;  4] = [EDirection::NORTH, EDirection::EAST, EDirection::SOUTH, EDirection::WEST];
-        
-        let index = DIRECTIONS.iter().position(|d| *d == self).unwrap();
-        let max = DIRECTIONS.len() as i8;
+        let index = EDirection::DIRECTIONS.iter().position(|d| *d == self).unwrap();
+        let max = EDirection::DIRECTIONS.len() as i8;
         let new_index = (index as i8 + offset + max) % max;
-        DIRECTIONS[new_index as usize]
+        EDirection::DIRECTIONS[new_index as usize]
     }
 }
 
@@ -133,34 +109,34 @@ pub struct Tile {
     pub walls: Vec<EDirection>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ETileType {
-    Free,
+    Regular,
     NoTile,
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct Position {
-    pub x: u32,
-    pub y: u32,
+    pub x: i32,
+    pub y: i32,
 }
 
 impl Position {
-    pub fn new(x: u32, y: u32) -> Position {
+    pub fn new(x: i32, y: i32) -> Position {
         Position {
             x,
             y,
         }
     }
 
-    pub fn set_x(&self, x: u32) -> Position {
+    pub fn set_x(&self, x: i32) -> Position {
         Position {
             x,
             y: self.y,
         }
     }
 
-    pub fn set_y(&self, y: u32) -> Position {
+    pub fn set_y(&self, y: i32) -> Position {
         Position {
             x: self.x,
             y,

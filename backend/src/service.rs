@@ -6,7 +6,7 @@ use std::sync::{ Arc, Mutex };
 use crate::protocol::server::RoboRallyGame;
 use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetRoundInputRequest, SetRoundInputResponse };
 
-use crate::roborally::state::{ State, Board, Player, RobotBuilder, Position, EDirection, RoundPhase };
+use crate::roborally::state::{ State, Board, Player, RobotBuilder, Position, EDirection, RoundPhase, ParserError as BoardParserError };
 use crate::roborally::engine::round_engine::{ RoundEngine };
 use crate::roborally::engine::player_input::{ PlayerInput };
 
@@ -45,7 +45,7 @@ impl RoboRallyGame for RoboRallyGameService {
 
 impl RoboRallyGameService {
     fn start_new_game(&self) -> Result<GameState, Error> {
-        let mut state = new_game_state();
+        let mut state = new_game_state()?;
         let engine = RoundEngine::new();
         state = engine.run_round_initialization(state)?;
         
@@ -76,7 +76,7 @@ impl RoboRallyGameService {
     }
 }
 
-fn new_game_state() -> Box<State> {
+fn new_game_state() -> Result<Box<State>, BoardParserError> {
     let robot1 = RobotBuilder::default()
         .id(0)
         .position(Position::new(2, 2))
@@ -91,8 +91,8 @@ fn new_game_state() -> Box<State> {
         .build().unwrap();
     let player2 = Player::new(1, robot2);
 
-    let board = Board::new_empty_board(5, 5);
-    State::new_with_random_deck(board, vec![player1, player2])
+    let board = Board::load_board("test1")?;
+    Ok(State::new_with_random_deck(board, vec![player1, player2]))
 }
 
 fn into_status(err: Error) -> Status {

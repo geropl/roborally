@@ -4,18 +4,13 @@ use std::fmt;
 
 use failure::Fail;
 
-use crate::roborally::state::{ State, StateError, PlayerID, RobotID, EDirection, EConnection, Position, REGISTER_COUNT };
+use crate::roborally::state::{ State, StateError, PlayerID, RobotID, EDirection, EConnection };
 
 #[derive(Debug, Fail)]
 pub enum ExecutionEngineError {
     #[fail(display = "Robot not found for player with id {}", player_id)]
     RobotNotFound {
         player_id: PlayerID,
-    },
-    #[fail(display = "No position after {:?} {:?}", pos, dir)]
-    PositionNotOnBoard {
-        pos: Position,
-        dir: EDirection,
     },
     #[fail(display = "Move error: {}", msg)]
     GenericAlgorithmError {
@@ -37,16 +32,23 @@ impl ExecutionEngine {
         Self::default()
     }
 
-    pub fn run_register_phase(&self, state: Box<State>) -> Result<Box<State>, ExecutionEngineError> {
-        // Phase:
-        // 1. Robots move, in order of Priority
+    pub fn execute_registers(&self, state: Box<State>) -> Result<Box<State>, ExecutionEngineError> {
         let mut state = state;
-        for i in 0..REGISTER_COUNT {
-            let player_move_cards = state.get_register_cards_sorted_by_priority(i)?;
-            for player_card in player_move_cards {
-                let tmove = player_card.1.tmove;
-                state = self.perform_move(state, player_card.0, tmove)?;
-            }
+        let register_count = state.players[0].registers.len();  // TODO make configurable or fix tests!
+        for register_index in 0..register_count {
+            state = self.run_register_phase(state, register_index)?;
+        }
+        Ok(state)
+    }
+
+    fn run_register_phase(&self, state: Box<State>, register_index: usize) -> Result<Box<State>, ExecutionEngineError> {
+        let mut state = state;
+
+        // 1. Robots move, in order of Priority
+        let player_move_cards = state.get_register_cards_sorted_by_priority(register_index)?;
+        for player_card in player_move_cards {
+            let tmove = player_card.1.tmove;
+            state = self.perform_move(state, player_card.0, tmove)?;
         }
 
         // 2. Board elements move:
@@ -101,14 +103,15 @@ impl ExecutionEngine {
 
             // Handle different neighbor connection
             let to = match board.get_neighbor_in(from, direction) {
-                None => {
-                    return Err(ExecutionEngineError::PositionNotOnBoard { pos: *from, dir: direction })
-                },
-                Some(EConnection::Walled) => {
+                EConnection::Free(to) => to,
+                EConnection::Walled => {
                     // No further chaining or movement possible: we're done here
                     return Ok(state)
                 },
-                Some(EConnection::Free(to)) => to,
+                EConnection::OffPlatform(pos) => {
+                    // TODO Let robot die
+                    pos
+                },
             };
 
             // Watch out for the next robot for our chain
@@ -129,14 +132,15 @@ impl ExecutionEngine {
             let robot = state.get_robot_or_fail(*robot_id)?;
             
             let to = match board.get_neighbor_in(&robot.position, direction) {
-                None => {
-                    return Err(ExecutionEngineError::PositionNotOnBoard { pos: robot.position, dir: direction })
-                },
-                Some(EConnection::Walled) => {
+                EConnection::Free(to) => to,
+                EConnection::Walled => {
                     // Cannot move
                     continue;
                 },
-                Some(EConnection::Free(to)) => to,
+                EConnection::OffPlatform(pos) => {
+                    // TODO Let robot die
+                    pos
+                },
             };
 
             // Actual move TODO Should field do this, too?
@@ -212,10 +216,11 @@ impl fmt::Debug for dyn TMove {
 
 #[cfg(test)]
 mod test {
+    use failure::Error;
     use crate::roborally::state::*;
     use crate::roborally::engine::execution_engine::*;
 
-    fn create_state() -> (Board, Vec<Player>) {
+    fn create_state() -> Result<(Board, Vec<Player>), Error> {
         // State
         let robot1 = RobotBuilder::default()
             .id(0)
@@ -231,17 +236,17 @@ mod test {
             .build().unwrap();
         let player2 = Player::new_with_move(1, robot2, MoveCard::new_from_moves(2, &[ESimpleMove::TurnLeft, ESimpleMove::Forward]));
 
-        let board = Board::new_empty_board(5, 5);
-        (board, vec![player1, player2])
+        let board = Board::load_board("empty-5x5")?;
+        Ok((board, vec![player1, player2]))
     }
 
     #[test]
-    fn test_simple_move() -> Result<(), Box<ExecutionEngineError>> {
-        let (board, players) = create_state();
+    fn test_simple_move() -> Result<(), Error> {
+        let (board, players) = create_state()?;
         let state = State::new_with_random_deck(board, players);
         
         let engine = ExecutionEngine::default();
-        let actual_state = engine.run_register_phase(state)?;
+        let actual_state = engine.execute_registers(state)?;
 
         let actual_robot1 = actual_state.get_robot_for(0).unwrap();
         let actual_robot2 = actual_state.get_robot_for(1).unwrap();
@@ -260,22 +265,22 @@ mod test {
             tiles: vec![
                 Tile {
                     position: Position { x: 0, y: 0 },
-                    ttype: ETileType::Free,
+                    ttype: ETileType::Regular,
                     walls: vec![EDirection::SOUTH, EDirection::EAST],
                 },
                 Tile {
                     position: Position { x: 1, y: 0 },
-                    ttype: ETileType::Free,
+                    ttype: ETileType::Regular,
                     walls: vec![],
                 },
                 Tile {
                     position: Position { x: 0, y: 1 },
-                    ttype: ETileType::Free,
+                    ttype: ETileType::Regular,
                     walls: vec![],
                 },
                 Tile {
                     position: Position { x: 1, y: 1 },
-                    ttype: ETileType::Free,
+                    ttype: ETileType::Regular,
                     walls: vec![],
                 },
             ],
@@ -307,7 +312,7 @@ mod test {
         let state = State::new_with_random_deck(board, players);
         
         let engine = ExecutionEngine::default();
-        let actual_state = engine.run_register_phase(state)?;
+        let actual_state = engine.execute_registers(state)?;
 
         let actual_robot1 = actual_state.get_robot_for(0).unwrap();
         let actual_robot2 = actual_state.get_robot_for(1).unwrap();

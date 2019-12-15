@@ -236,7 +236,7 @@ mod test {
             .build().unwrap();
         let player2 = Player::new_with_move(1, robot2, MoveCard::new_from_moves(2, &[ESimpleMove::TurnLeft, ESimpleMove::Forward]));
 
-        let board = Board::load_board("empty-5x5")?;
+        let board = Board::load_board_by_name("empty-5x5")?;
         Ok((board, vec![player1, player2]))
     }
 

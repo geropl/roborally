@@ -1,3 +1,4 @@
+#![allow(clippy::trivially_copy_pass_by_ref)]
 use failure::Fail;
 
 use std::path::{ Path, PathBuf };
@@ -43,10 +44,10 @@ pub fn load_board_by_name(name: &str) -> Result<Board, ParserError> {
     if !base_path.exists() {
         return Err(ParserError::FileError{ msg: format!("File not found: {}", base_path.display()) });
     }
-    load_board_from_file(&base_path)
+    load_board_by_name_from_file(&base_path)
 }
 
-pub fn load_board_from_file(path: &Path) -> Result<Board, ParserError> {
+pub fn load_board_by_name_from_file(path: &Path) -> Result<Board, ParserError> {
     let content = match fs::read_to_string(path) {
         Ok(c) => Ok(c),
         Err(e) => Err(ParserError::FileError{ msg: format!("{}", e) }),

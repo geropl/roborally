@@ -46,7 +46,7 @@ impl ProgramCardDeckGenerator {
         }
     }
 
-    pub fn generate_program_deck(&mut self, config: ProgramCardDeckConfig) -> ProgramCardDeck {
+    pub fn generate_program_deck(&mut self, config: &ProgramCardDeckConfig) -> ProgramCardDeck {
         let mut cards = Vec::with_capacity(config.card_count() as usize);
 
         let mut priorities: HashSet<u32> = HashSet::new();
@@ -119,10 +119,10 @@ impl ProgramCardDeck {
         let mut cards = self.cards.clone();
         let mut rng = rand::thread_rng();
         let mut indeces = index::sample(&mut rng, cards.len(), amount).into_vec();
-        indeces.sort();
 
         let mut chosen_cards = Vec::with_capacity(amount);
-        indeces.reverse();  // important because we want to remove items, which change all following indexes
+        indeces.sort();
+        indeces.reverse();  // important because we want to remove items, which changes all following indexes
         for i in indeces {
             chosen_cards.push(cards.remove(i));
         }

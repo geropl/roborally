@@ -75,28 +75,57 @@ impl From<ESimpleMove> for register_engine::ESimpleMove {
 }
 
 // State -> protocol
-impl From<&Box<state::State>> for GameState {
-    fn from(state: &Box<state::State>) -> GameState {
-        use std::borrow::Borrow;
-
-        let players: Vec<Player> = state.players.iter()
-            .map(Player::from)
-            .collect();
+impl From<&state::GameState> for GameState {
+    fn from(game_state: &state::GameState) -> GameState {
         GameState {
-            board: Some(Board::from(state.board.borrow())),
-            players,
+            phase: EGamePhase::from(game_state.phase).into(),
+            initial_state: Some(State::from(&game_state.initial_state)),
+            rounds: game_state.rounds.iter().map(Round::from).collect(),
         }
     }
 }
 
-impl From<&state::State> for GameState {
-    fn from(state: &state::State) -> GameState {
+impl From<state::EGamePhase> for EGamePhase {
+    fn from(phase: state::EGamePhase) -> EGamePhase {
+        match phase {
+            state::EGamePhase::INITIAL => EGamePhase::Initial,
+            state::EGamePhase::PREPARATION => EGamePhase::Preparation,
+            state::EGamePhase::RUNNING => EGamePhase::Running,
+            state::EGamePhase::ENDED => EGamePhase::Ended,
+        }
+    }
+}
+
+impl From<&state::Round> for Round {
+    fn from(round: &state::Round) -> Round {
+        Round {
+            id: round.id,
+            phase: ERoundPhase::from(round.phase).into(),
+            state: Some(State::from(&round.state)),
+        }
+    }
+}
+
+impl From<state::ERoundPhase> for ERoundPhase {
+    fn from(phase: state::ERoundPhase) -> ERoundPhase {
+        match phase {
+            state::ERoundPhase::INITIALIZATION => ERoundPhase::Initialization,
+            state::ERoundPhase::PROGRAMMING => ERoundPhase::Programming,
+            state::ERoundPhase::EXECUTION => ERoundPhase::Execution,
+            state::ERoundPhase::CLEANUP => ERoundPhase::Cleanup,
+            state::ERoundPhase::DONE => ERoundPhase::Done,
+        }
+    }
+}
+
+impl From<&Box<state::State>> for State {
+    fn from(state: &Box<state::State>) -> State {
         use std::borrow::Borrow;
 
         let players: Vec<Player> = state.players.iter()
             .map(Player::from)
             .collect();
-        GameState {
+        State {
             board: Some(Board::from(state.board.borrow())),
             players,
         }

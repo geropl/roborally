@@ -1,0 +1,123 @@
+use super::{ ProgramCardDeckConfig, BoardConfig, PlayerConfig, State, StateError };
+
+use failure::Error;
+
+#[derive(Debug, Default)]
+pub struct GameConfig {
+    pub deck_config: ProgramCardDeckConfig,
+    pub board_config: BoardConfig,
+    pub player_config: PlayerConfig,
+}
+
+#[derive(Debug, Clone)]
+pub struct GameState {
+    pub phase: EGamePhase,
+    pub initial_state: Box<State>,
+    pub rounds: Vec<Round>,
+}
+
+impl GameState {
+    pub fn create_from(config: &GameConfig) -> Result<GameState, Error> {
+        let initial_state = State::create_from(config)?;
+        Ok(GameState {
+            phase: EGamePhase::INITIAL,
+            initial_state,
+            rounds: vec![],
+        })
+    }
+
+    pub fn update_round(&self, round: Round) -> Result<GameState, Error> {
+        let mut new_game_state = self.clone();
+        let i = new_game_state.rounds.iter().position(|r| r.id == round.id)
+            .ok_or(StateError::RoundNotFound{ round_id: round.id })?;
+        new_game_state.rounds[i] = round;
+        Ok(new_game_state)
+    }
+
+    pub fn add_round(&self) -> GameState {
+        let mut game_state = self.clone();
+        let state = match self.rounds.last() {
+            Some(r) => &r.state,
+            None => &game_state.initial_state,
+        };
+        let round = Round::new(game_state.rounds.len() as u32, state.clone());
+        game_state.rounds.push(round);
+        game_state
+    }
+
+    pub fn set_phase(&self, new_phase: EGamePhase) -> GameState {
+        let mut game_state = self.clone();
+        game_state.phase = new_phase;
+        game_state
+    }
+
+    pub fn current_round(&self) -> Result<&Round, StateError> {
+        match self.rounds.last() {
+            None => Err(StateError::GameStateMissingRound{ round_id: None }),
+            Some(r) => Ok(r),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EGamePhase {
+    INITIAL,
+    PREPARATION,
+    RUNNING,
+    ENDED,
+}
+
+pub type RoundID = u32;
+
+#[derive(Debug, Clone)]
+pub struct Round {
+    pub id: RoundID,
+    pub phase: ERoundPhase,
+    pub state: Box<State>,
+}
+
+impl Round {
+    pub fn new(id: RoundID, state: Box<State>) -> Round {
+        Round {
+            id,
+            phase: ERoundPhase::INITIALIZATION,
+            state,
+        }
+    }
+
+    pub fn advance(&self, state: Box<State>, phase: ERoundPhase) -> Round {
+        Round {
+            id: self.id,
+            state,
+            phase
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ERoundPhase {
+    /**
+     * Cards are dealt + some maintenance stuff (power down)
+     */
+    INITIALIZATION,
+
+    /**
+     * The program phase: players fill their registers with their dealt cards and may announce power down
+     */
+    PROGRAMMING,
+
+    /**
+     * The robots are moved according to the users programs and all resulting effects are executed
+     */
+    EXECUTION,
+
+    /**
+     * Robots are repaired and option cards are drawn and executed
+     */
+    CLEANUP,
+
+    /**
+     * All activities this round are done. Either start with next round or end this game (if the conditions are met)
+     */
+    DONE
+}

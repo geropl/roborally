@@ -2,6 +2,19 @@
 
 use derive_builder::Builder;
 
+#[derive(Debug)]
+pub struct BoardConfig {
+    factory_floor: String,
+}
+
+impl Default for BoardConfig {
+    fn default() -> Self {
+        Self {
+            factory_floor: String::from("test1"),
+        }
+    }
+}
+
 /**
  * Spans a rectangular board constisting of tiles.
  * Not every tile is playable, [0, 0] is the North-West/upper-left corner
@@ -14,7 +27,12 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn load_board(name: &str) -> Result<Board, super::ParserError> {
+    pub fn create_from(config: &BoardConfig) -> Result<Board, super::ParserError> {
+        super::load_board_by_name(&config.factory_floor)
+    }
+
+    #[cfg(test)]
+    pub fn load_board_by_name(name: &str) -> Result<Board, super::ParserError> {
         super::load_board_by_name(name)
     }
 

@@ -3,6 +3,33 @@ syntax = "proto3";
 package protocol;
 
 message GameState {
+    EGamePhase phase = 1;
+    State initial_state = 2;
+    repeated Round rounds = 3;
+}
+
+enum EGamePhase {
+    INITIAL = 0;
+    PREPARATION = 1;
+    RUNNING = 2;
+    ENDED = 3;
+}
+
+message Round {
+    uint32 id = 1;
+    ERoundPhase phase = 2;
+    State state = 3;
+}
+
+enum ERoundPhase {
+    INITIALIZATION = 0;
+    PROGRAMMING = 1;
+    EXECUTION = 2;
+    CLEANUP = 3;
+    DONE = 4;
+}
+
+message State {
     Board board = 1;
     repeated Player players = 2;
 }

@@ -8,6 +8,22 @@ use super::cards::*;
 pub type PlayerID = u32;
 
 pub const REGISTER_COUNT: usize = 5;
+pub const DAMAGE_TOKENS: u32 = 9;
+
+#[derive(Debug, Clone)]
+pub struct PlayerConfig {
+    player_count: usize,
+    // register_count: u32, TODO depends on damage tokens/max damage!
+    life_tokens: u32,
+}
+impl Default for PlayerConfig {
+    fn default() -> Self {
+        Self {
+            player_count: 2,
+            life_tokens: 3,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Player {
@@ -18,6 +34,27 @@ pub struct Player {
 }
 
 impl Player {
+    pub fn create_from(config: &PlayerConfig) -> Vec<Player> {
+        let mut players = Vec::with_capacity(config.player_count);
+        for id in 0..config.player_count {
+            players.push(Player {
+                id: id as u32,
+                robot: Robot {
+                    id: id as u32,
+                    damage: 0,
+                    life_tokens: config.life_tokens,
+                    powered_down: EPoweredDown::No,
+                    position: Position::new(0, 0),
+                    direction: EDirection::SOUTH,
+                },
+                registers: (0..REGISTER_COUNT).map(|_| Register::default()).collect(),
+                program_card_deck: vec![],
+            });
+        }
+        players
+    }
+
+    #[cfg(test)]
     pub fn new(id: PlayerID, robot: Robot) -> Player {
         Player {
             id,

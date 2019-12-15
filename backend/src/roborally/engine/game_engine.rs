@@ -1,11 +1,14 @@
-use failure::Fail;
+use failure::{ Fail, Error };
 
 use crate::roborally::state::{
+    GameState,
+    Round,
     State,
     PlayerID,
     EPoweredDown,
     StateError,
-    RoundPhase,
+    ERoundPhase,
+    EGamePhase,
 };
 use super::register_engine::{ RegisterEngine, RegisterEngineError };
 use super::player_input::{ PlayerInput };
@@ -27,8 +30,13 @@ pub enum EngineError {
     },
     #[fail(display = "Invalid round phase! Expected: {:?}, found: {:?}", expected, actual)]
     InvalidRoundPhase {
-        expected: RoundPhase,
-        actual: RoundPhase,
+        expected: ERoundPhase,
+        actual: ERoundPhase,
+    },
+    #[fail(display = "Invalid game phase! Expected: {:?}, found: {:?}", expected, actual)]
+    InvalidGamePhase {
+        expected: EGamePhase,
+        actual: EGamePhase,
     }
 }
 
@@ -45,20 +53,54 @@ impl From<RegisterEngineError> for EngineError {
     }
 }
 
+pub struct GameEngine {
+    pub game_engine: RoundEngine,
+}
+
+impl GameEngine {
+    pub fn new() -> Self {
+        GameEngine {
+            game_engine: RoundEngine::new()
+        }
+    }
+
+    pub fn initialize(&self, game_state: GameState) -> Result<GameState, EngineError> {
+        assert_game_phase(&game_state, EGamePhase::INITIAL)?;
+        let mut game_state = game_state;
+        // TODO EGamePhase::PREPARATION: Here is user input necessary: Choose start positions (order random, has to be stored for later choices)
+
+        // Create and initialze first round
+        game_state = game_state.add_round();
+        self.game_engine.run_round_initialization(game_state.current_round()?)?;
+        Ok(game_state.set_phase(EGamePhase::RUNNING))
+    }
+
+    pub fn set_player_input(&self, game_state: GameState, input: &PlayerInput) -> Result<GameState, Error> {
+        assert_game_phase(&game_state, EGamePhase::RUNNING)?;
+        let round = game_state.current_round()?;
+        let mut round = self.game_engine.set_player_input(round, input)?;
+
+        if round.phase == ERoundPhase::EXECUTION {
+            round = self.game_engine.run_execute(round)?;
+        }
+        game_state.update_round(round)
+    }
+}
+
 pub struct RoundEngine {
-    pub exec_engine: RegisterEngine,
+    pub register_engine: RegisterEngine,
 }
 
 impl RoundEngine {
     pub fn new() -> Self {
         RoundEngine {
-            exec_engine: RegisterEngine::new()
+            register_engine: RegisterEngine::new()
         }
     }
     
-    pub fn run_round_initialization(&self, state: Box<State>) -> Result<Box<State>, EngineError> {
-        assert_phase(&state, RoundPhase::PREPARATION)?;
-        let mut state = state;
+    fn run_round_initialization(&self, round: &Round) -> Result<Round, EngineError> {
+        assert_round_phase(&round, ERoundPhase::INITIALIZATION)?;
+        let mut state = round.state.clone();
 
         // 0. Prepare
         //  - powered down robot:
@@ -88,12 +130,12 @@ impl RoundEngine {
             state = state.set_deck(deck);
         }
 
-        Ok(state.set_phase(RoundPhase::PROGRAM))
+        Ok(round.advance(state, ERoundPhase::PROGRAMMING))
     }
 
-    pub fn set_player_input(&self, state: Box<State>, input: &PlayerInput) -> Result<Box<State>, EngineError> {
-        assert_phase(&state, RoundPhase::PROGRAM)?;
-        let mut state = state;
+    fn set_player_input(&self, round: &Round, input: &PlayerInput) -> Result<Round, EngineError> {
+        assert_round_phase(&round, ERoundPhase::PROGRAMMING)?;
+        let mut state = round.state.clone();
 
         // 2. Program registers + 3. Announce Power Down
         //  - input:
@@ -124,20 +166,22 @@ impl RoundEngine {
         }
         state = state.update_player(new_player)?;
 
-        if all_players_provided_input(&state) {
-            state = state.set_phase(RoundPhase::EXECUTE);
-        }
+        let next_phase = if all_players_provided_input(&state) {
+            ERoundPhase::EXECUTION
+        } else {
+            round.phase
+        };
 
-        Ok(state)
+        Ok(round.advance(state, next_phase))
     }
 
-    pub fn run_execute(&self, state: Box<State>) -> Result<Box<State>, EngineError> {
-        assert_phase(&state, RoundPhase::EXECUTE)?;
-        let mut state = state;
+    fn run_execute(&self, round: Round) -> Result<Round, EngineError> {
+        assert_round_phase(&round, ERoundPhase::EXECUTION)?;
+        let mut state = round.state.clone();
 
         // 4. Register execution phase
-        state = self.exec_engine.execute_registers(state)?;
-        state = state.set_phase(RoundPhase::CLEANUP);
+        state = self.register_engine.execute_registers(state)?;
+        // let mut next_phase = ERoundPhase::CLEANUP;
 
         // 5. Cleanup
         //  - TODO repairs and upgrades:
@@ -158,7 +202,7 @@ impl RoundEngine {
 
         // TODO When to check for death?
 
-        Ok(state.set_phase(RoundPhase::PREPARATION))
+        Ok(round.advance(state, ERoundPhase::DONE))
     }
 }
 
@@ -168,11 +212,21 @@ fn all_players_provided_input(state: &State) -> bool {
             .all(|r| r.move_card.is_some()))
 }
 
-fn assert_phase(state: &State, expected: RoundPhase) -> Result<(), EngineError> {
-    if state.phase != expected {
+fn assert_game_phase(game_state: &GameState, expected: EGamePhase) -> Result<(), EngineError> {
+    if game_state.phase != expected {
+        return Err(EngineError::InvalidGamePhase {
+            expected,
+            actual: game_state.phase
+        });
+    }
+    Ok(())
+}
+
+fn assert_round_phase(round: &Round, expected: ERoundPhase) -> Result<(), EngineError> {
+    if round.phase != expected {
         return Err(EngineError::InvalidRoundPhase {
             expected,
-            actual: state.phase
+            actual: round.phase
         });
     }
     Ok(())

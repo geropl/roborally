@@ -6,13 +6,24 @@ use std::sync::{ Arc, Mutex };
 use crate::protocol::server::RoboRallyGame;
 use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetRoundInputRequest, SetRoundInputResponse };
 
-use crate::roborally::state::{ State, Board, Player, RobotBuilder, Position, EDirection, RoundPhase, ParserError as BoardParserError };
-use crate::roborally::engine::round_engine::{ RoundEngine };
+use crate::roborally::state as s;
+use crate::roborally::engine::game_engine::{ GameEngine };
 use crate::roborally::engine::player_input::{ PlayerInput };
 
 #[derive(Default)]
 pub struct RoboRallyGameService {
-    state: Arc<Mutex<State>>,
+    state: Arc<Mutex<s::GameState>>,
+}
+// Needed for Arc<Mutex<GameState>>
+impl Default for s::GameState {
+    fn default() -> Self {
+        use s::*;
+        GameState {
+            phase: EGamePhase::INITIAL,
+            initial_state: Box::from(State::default()),
+            rounds: vec![],
+        }
+    }
 }
 
 #[tonic::async_trait]
@@ -45,54 +56,39 @@ impl RoboRallyGame for RoboRallyGameService {
 
 impl RoboRallyGameService {
     fn start_new_game(&self) -> Result<GameState, Error> {
-        let mut state = new_game_state()?;
-        let engine = RoundEngine::new();
-        state = engine.run_round_initialization(state)?;
+        let mut game_state = new_game_state()?;
+        let engine = GameEngine::new();
+        game_state = engine.initialize(game_state)?;
         
-        let game_state = GameState::from(&state);
+        let proto_game_state = GameState::from(&game_state);
         let mut persistent_state = self.state.lock().unwrap();
-        *persistent_state = *state;
+        *persistent_state = game_state;
 
-        Ok(game_state)
+        Ok(proto_game_state)
     }
 
     fn do_set_input(&self, request: SetRoundInputRequest) -> Result<GameState, Error> {
         let player_input = PlayerInput::parse_from(request.player_input)?;
 
         let mut persistent_state = self.state.lock().unwrap();
-        let mut state = Box::from((*persistent_state).clone());
+        let mut game_state = (*persistent_state).clone();
 
-        let engine = RoundEngine::new();
-        state = engine.set_player_input(state, &player_input)?;
+        let engine = GameEngine::new();
+        game_state = engine.set_player_input(game_state, &player_input)?;
 
-        if state.phase == RoundPhase::EXECUTE {
-            state = engine.run_execute(state)?;
-        }
+        let proto_game_state = GameState::from(&game_state);
+        *persistent_state = game_state;
 
-        let game_state = GameState::from(&state);
-        *persistent_state = *state;
-
-        Ok(game_state)
+        Ok(proto_game_state)
     }
 }
 
-fn new_game_state() -> Result<Box<State>, BoardParserError> {
-    let robot1 = RobotBuilder::default()
-        .id(0)
-        .position(Position::new(2, 2))
-        .direction(EDirection::NORTH)
-        .build().unwrap();
-    let player1 = Player::new(0, robot1);
+fn new_game_state() -> Result<s::GameState, Error> {
+    use s::*;
 
-    let robot2 = RobotBuilder::default()
-        .id(1)
-        .position(Position::new(4, 4))
-        .direction(EDirection::EAST)
-        .build().unwrap();
-    let player2 = Player::new(1, robot2);
-
-    let board = Board::load_board("test1")?;
-    Ok(State::new_with_random_deck(board, vec![player1, player2]))
+    let config = GameConfig::default();
+    let game_state = GameState::create_from(&config)?;
+    Ok(game_state)
 }
 
 fn into_status(err: Error) -> Status {

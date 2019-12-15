@@ -7,7 +7,7 @@ use crate::roborally::state::{
     StateError,
     RoundPhase,
 };
-use super::execution_engine::{ ExecutionEngine, ExecutionEngineError };
+use super::register_engine::{ RegisterEngine, RegisterEngineError };
 use super::player_input::{ PlayerInput };
 
 #[derive(Debug, Fail)]
@@ -39,20 +39,20 @@ impl From<StateError> for EngineError {
     }
 }
 
-impl From<ExecutionEngineError> for EngineError {
-    fn from(err: ExecutionEngineError) -> EngineError {
+impl From<RegisterEngineError> for EngineError {
+    fn from(err: RegisterEngineError) -> EngineError {
         EngineError::GenericAlgorithmError{ msg: format!{"{}", err} }
     }
 }
 
 pub struct RoundEngine {
-    pub exec_engine: ExecutionEngine,
+    pub exec_engine: RegisterEngine,
 }
 
 impl RoundEngine {
     pub fn new() -> Self {
         RoundEngine {
-            exec_engine: ExecutionEngine::new()
+            exec_engine: RegisterEngine::new()
         }
     }
     

@@ -2,7 +2,7 @@ use failure::Fail;
 
 use crate::roborally::state;
 use crate::roborally::engine::player_input;
-use crate::roborally::engine::execution_engine;
+use crate::roborally::engine::register_engine;
 
 tonic::include_proto!("protocol");
 
@@ -39,37 +39,37 @@ impl player_input::PlayerInput {
 
 impl state::MoveCard {
     fn parse_from(move_card: &MoveCard) -> Result<state::MoveCard, ProtocolError> {
-        let simple_moves: Result<Vec<execution_engine::ESimpleMove>, _> = move_card.moves.iter()
-            .map(|mmove_i32| execution_engine::ESimpleMove::parse_from(*mmove_i32))
+        let simple_moves: Result<Vec<register_engine::ESimpleMove>, _> = move_card.moves.iter()
+            .map(|mmove_i32| register_engine::ESimpleMove::parse_from(*mmove_i32))
             .collect();
         let simple_moves = simple_moves?;
         Ok(state::MoveCard::new_from_moves(move_card.priority, &simple_moves))
     }
 }
 
-impl execution_engine::ESimpleMove {
-    fn parse_from(mmove_i32: i32) -> Result<execution_engine::ESimpleMove, ProtocolError> {
+impl register_engine::ESimpleMove {
+    fn parse_from(mmove_i32: i32) -> Result<register_engine::ESimpleMove, ProtocolError> {
         match ESimpleMove::from_i32(mmove_i32) {
             None => Err(ProtocolError::WrongEnumValue{
                 enum_name: String::from("ESimpleMove"),
                 value: mmove_i32,
             }),
-            Some(m) => Ok(execution_engine::ESimpleMove::from(m)),
+            Some(m) => Ok(register_engine::ESimpleMove::from(m)),
         }
     }
 }
 
-impl From<ESimpleMove> for execution_engine::ESimpleMove {
-    fn from(mmove: ESimpleMove) -> execution_engine::ESimpleMove {
+impl From<ESimpleMove> for register_engine::ESimpleMove {
+    fn from(mmove: ESimpleMove) -> register_engine::ESimpleMove {
         match mmove {
-            ESimpleMove::Forward => execution_engine::ESimpleMove::Forward,
-            ESimpleMove::Backward => execution_engine::ESimpleMove::Backward,
-            ESimpleMove::StepLeft => execution_engine::ESimpleMove::StepLeft,
-            ESimpleMove::StepRight => execution_engine::ESimpleMove::StepRight,
+            ESimpleMove::Forward => register_engine::ESimpleMove::Forward,
+            ESimpleMove::Backward => register_engine::ESimpleMove::Backward,
+            ESimpleMove::StepLeft => register_engine::ESimpleMove::StepLeft,
+            ESimpleMove::StepRight => register_engine::ESimpleMove::StepRight,
             
-            ESimpleMove::TurnRight => execution_engine::ESimpleMove::TurnRight,
-            ESimpleMove::TurnLeft => execution_engine::ESimpleMove::TurnLeft,
-            ESimpleMove::UTurn => execution_engine::ESimpleMove::UTurn,
+            ESimpleMove::TurnRight => register_engine::ESimpleMove::TurnRight,
+            ESimpleMove::TurnLeft => register_engine::ESimpleMove::TurnLeft,
+            ESimpleMove::UTurn => register_engine::ESimpleMove::UTurn,
         }
     }
 }

@@ -20,7 +20,11 @@ pub enum StateError {
     RobotNotFoundID {
         robot_id: RobotID,
     },
-    #[fail(display = "Player not found for id {}", player_id)]
+    #[fail(display = "Robot not found for player with id: {}", player_id)]
+    RobotNotFoundPlayerID {
+        player_id: PlayerID,
+    },
+    #[fail(display = "Player not found for id: {}", player_id)]
     PlayerNotFound {
         player_id: PlayerID,
     },
@@ -79,13 +83,14 @@ impl State {
         })
     }
 
-    pub fn get_robot_for(&self, player_id: PlayerID) -> Option<&Robot> {
+    pub fn get_robot_by_player_id_or_fail(&self, player_id: PlayerID) -> Result<&Robot, StateError> {
         self.players.iter()
             .find(|p| p.id == player_id)
             .map(|p| &p.robot)
+            .ok_or(StateError::RobotNotFoundPlayerID{ player_id })
     }
 
-    pub fn get_robot_or_fail(&self, robot_id: RobotID) -> Result<&Robot, StateError> {
+    pub fn get_robot_by_id_or_fail(&self, robot_id: RobotID) -> Result<&Robot, StateError> {
         self.players.iter()
             .find(|p| p.robot.id == robot_id)
             .map(|p| &p.robot)

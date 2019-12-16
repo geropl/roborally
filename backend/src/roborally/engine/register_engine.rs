@@ -227,14 +227,14 @@ mod test {
             .position(Position::new(2, 2))
             .direction(EDirection::NORTH)
             .build().unwrap();
-        let player1 = Player::new_with_move(0, robot1, MoveCard::new_from_moves(1, &[ESimpleMove::Forward]));
+        let player1 = Player::new_with_move(0, robot1, MoveCard::new_from_moves(0, 1, &[ESimpleMove::Forward]));
 
         let robot2 = RobotBuilder::default()
             .id(1)
             .position(Position::new(4, 4))
             .direction(EDirection::EAST)
             .build().unwrap();
-        let player2 = Player::new_with_move(1, robot2, MoveCard::new_from_moves(2, &[ESimpleMove::TurnLeft, ESimpleMove::Forward]));
+        let player2 = Player::new_with_move(1, robot2, MoveCard::new_from_moves(1, 2, &[ESimpleMove::TurnLeft, ESimpleMove::Forward]));
 
         let board = Board::load_board_by_name("empty-5x5")?;
         Ok((board, vec![player1, player2]))
@@ -296,7 +296,7 @@ mod test {
             .position(robot1_pos.clone())
             .direction(EDirection::NORTH)
             .build().unwrap();
-        let player1 = Player::new_with_move(player_id1, robot1, MoveCard::new_from_moves(1, &[ESimpleMove::Forward]));
+        let player1 = Player::new_with_move(player_id1, robot1, MoveCard::new_from_moves(0, 1, &[ESimpleMove::Forward]));
 
         let player_id2: u32 = 1;
         let robot2_pos = Position::new(1, 0);
@@ -305,7 +305,7 @@ mod test {
             .position(robot2_pos)
             .direction(EDirection::WEST)
             .build().unwrap();
-        let player2 = Player::new_with_move(player_id2, robot2, MoveCard::new_from_moves(2, &[ESimpleMove::Forward]));
+        let player2 = Player::new_with_move(player_id2, robot2, MoveCard::new_from_moves(1, 2, &[ESimpleMove::Forward]));
         let players = vec![player1, player2];
 
         // State

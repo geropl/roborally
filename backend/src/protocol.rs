@@ -12,48 +12,35 @@ pub enum ProtocolError {
     #[fail(display = "Missing player input!")]
     MissingPlayerInput {
     },
-    #[fail(display = "Expected one of enum {}, found value {}!", enum_name, value)]
-    WrongEnumValue {
-        enum_name: String,
-        value: i32,
-    },
+    // #[fail(display = "Expected one of enum {}, found value {}!", enum_name, value)]
+    // WrongEnumValue {
+    //     enum_name: String,
+    //     value: i32,
+    // },
 }
 
 impl player_input::PlayerInput {
     pub fn parse_from(player_input: Option<PlayerInput>) -> Result<player_input::PlayerInput, ProtocolError> {
         let player_input = player_input.ok_or(ProtocolError::MissingPlayerInput{})?;
 
-        let move_cards: Result<Vec<state::MoveCard>, _> = player_input.move_cards.iter()
-            .map(state::MoveCard::parse_from)
-            .collect();
         Ok(player_input::PlayerInput {
             player_id: player_input.player_id,
-            move_cards: move_cards?, 
+            register_cards_choices: player_input.register_cards_choices, 
         })
     }
 }
 
-impl state::MoveCard {
-    fn parse_from(move_card: &MoveCard) -> Result<state::MoveCard, ProtocolError> {
-        let simple_moves: Result<Vec<register_engine::ESimpleMove>, _> = move_card.moves.iter()
-            .map(|mmove_i32| register_engine::ESimpleMove::parse_from(*mmove_i32))
-            .collect();
-        let simple_moves = simple_moves?;
-        Ok(state::MoveCard::new_from_moves(move_card.priority, &simple_moves))
-    }
-}
-
-impl register_engine::ESimpleMove {
-    fn parse_from(mmove_i32: i32) -> Result<register_engine::ESimpleMove, ProtocolError> {
-        match ESimpleMove::from_i32(mmove_i32) {
-            None => Err(ProtocolError::WrongEnumValue{
-                enum_name: String::from("ESimpleMove"),
-                value: mmove_i32,
-            }),
-            Some(m) => Ok(register_engine::ESimpleMove::from(m)),
-        }
-    }
-}
+// impl register_engine::ESimpleMove {
+//     fn parse_from(mmove_i32: i32) -> Result<register_engine::ESimpleMove, ProtocolError> {
+//         match ESimpleMove::from_i32(mmove_i32) {
+//             None => Err(ProtocolError::WrongEnumValue{
+//                 enum_name: String::from("ESimpleMove"),
+//                 value: mmove_i32,
+//             }),
+//             Some(m) => Ok(register_engine::ESimpleMove::from(m)),
+//         }
+//     }
+// }
 
 impl From<ESimpleMove> for register_engine::ESimpleMove {
     fn from(mmove: ESimpleMove) -> register_engine::ESimpleMove {
@@ -121,18 +108,55 @@ impl From<&Box<state::State>> for State {
         let players: Vec<Player> = state.all_players()
             .map(Player::from)
             .collect();
+        let cards = state.deck.cards.iter()
+            .map(MoveCard::from)
+            .collect();
         State {
             board: Some(Board::from(state.board.borrow())),
             players,
+            cards,
         }
     }
 }
 
 impl From<&state::Player> for Player {
     fn from(player: &state::Player) -> Player {
+        let program_card_deck = player.program_card_deck.iter()
+            .map(MoveCard::from)
+            .collect();
         Player {
             id: player.id,
             robot: Some(Robot::from(&player.robot)),
+            program_card_deck,
+        }
+    }
+}
+
+impl From<&state::MoveCard> for MoveCard {
+    fn from(card: &state::MoveCard) -> MoveCard {
+        let moves = card.tmove.iter()
+            .cloned()
+            .map(ESimpleMove::from)
+            .map(|m| m as i32)
+            .collect();
+        MoveCard {
+            id: card.id,
+            priority: card.priority,
+            moves,
+        }
+    }
+}
+
+impl From<register_engine::ESimpleMove> for ESimpleMove {
+    fn from(dir: register_engine::ESimpleMove) -> ESimpleMove {
+        match dir {
+            register_engine::ESimpleMove::Backward => ESimpleMove::Backward,
+            register_engine::ESimpleMove::Forward => ESimpleMove::Forward,
+            register_engine::ESimpleMove::StepLeft => ESimpleMove::StepLeft,
+            register_engine::ESimpleMove::StepRight => ESimpleMove::StepRight,
+            register_engine::ESimpleMove::TurnLeft => ESimpleMove::TurnLeft,
+            register_engine::ESimpleMove::TurnRight => ESimpleMove::TurnRight,
+            register_engine::ESimpleMove::UTurn => ESimpleMove::UTurn,
         }
     }
 }

@@ -4,6 +4,7 @@ use derive_builder::Builder;
 
 use super::board::*;
 use super::cards::*;
+use super::StateError;
 
 pub type PlayerID = u32;
 
@@ -78,6 +79,24 @@ impl Player {
             registers: self.registers.clone(),
             ..*self
         }
+    }
+
+    pub fn choose_card(&self, register_index: usize, move_card_id: MoveCardID) -> Result<Player, StateError> {
+        let mut new_player = self.clone();
+        let register = &mut new_player.registers[register_index];
+        if register.move_card.is_some() {
+            return Err(StateError::DoublePlayerInput {
+                player_id: self.id,
+            });
+        }
+        let card_index = new_player.program_card_deck.iter().position(|c| c.id == move_card_id)
+            .ok_or(StateError::InvalidProgramCardChoice{
+                player_id: self.id,
+                move_card_id,
+            })?;
+        
+        register.move_card = Some(new_player.program_card_deck.remove(card_index));
+        Ok(new_player)
     }
 
     pub fn take_program_cards_from_unlocked_registers(&self) -> (Vec<MoveCard>, Player) {

@@ -42,4 +42,13 @@ pub enum StateError {
     RoundNotFound {
         round_id: RoundID,
     },
+    #[fail(display = "Double input for player {}!", player_id)]
+    DoublePlayerInput {
+        player_id: PlayerID,
+    },
+    #[fail(display = "Invalid program card choice ({}) by player {}!", move_card_id, player_id)]
+    InvalidProgramCardChoice {
+        player_id: PlayerID,
+        move_card_id: MoveCardID,
+    },
 }

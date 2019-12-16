@@ -8,7 +8,7 @@ import "inputs.proto";
 service RoboRallyGame {
     rpc StartGame (StartGameRequest) returns (StartGameResponse) {}
     rpc GetGameState (GetGameStateRequest) returns (GetGameStateResponse) {}
-    rpc SetRoundInput (SetRoundInputRequest) returns (SetRoundInputResponse) {}
+    rpc SetProgramInput (SetProgramInputRequest) returns (SetProgramInputResponse) {}
 }
 
 message StartGameRequest {
@@ -27,10 +27,10 @@ message GetGameStateResponse {
     GameState state = 1;
 }
 
-message SetRoundInputRequest {
+message SetProgramInputRequest {
     PlayerInput player_input = 1;
 }
 
-message SetRoundInputResponse {
+message SetProgramInputResponse {
     GameState state = 1;
 }

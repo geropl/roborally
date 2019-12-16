@@ -32,6 +32,7 @@ enum ERoundPhase {
 message State {
     Board board = 1;
     repeated Player players = 2;
+    repeated MoveCard cards = 3;
 }
 
 message Board {
@@ -59,6 +60,7 @@ message Position {
 message Player {
     uint32 id = 1;
     Robot robot = 2;
+    repeated MoveCard program_card_deck = 3;
 }
 
 message Robot {
@@ -74,4 +76,21 @@ enum EDirection {
     EAST = 1;
     SOUTH = 2;
     WEST = 3;
+}
+
+message MoveCard {
+    uint32 id = 1;
+    uint32 priority = 2;
+    repeated ESimpleMove moves = 3;
+}
+
+enum ESimpleMove {
+    Forward = 0;
+    Backward = 1;
+    StepLeft = 2;
+    StepRight = 3;
+    
+    TurnRight = 4;
+    TurnLeft = 5;
+    UTurn = 6;
 }

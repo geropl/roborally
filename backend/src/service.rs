@@ -4,7 +4,7 @@ use failure::Error;
 use std::sync::{ Arc, Mutex };
 
 use crate::protocol::server::RoboRallyGame;
-use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetRoundInputRequest, SetRoundInputResponse };
+use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetProgramInputRequest, SetProgramInputResponse };
 
 use crate::roborally::state as s;
 use crate::roborally::engine::game_engine::{ GameEngine };
@@ -36,10 +36,10 @@ impl RoboRallyGame for RoboRallyGameService {
         }))
     }
 
-    async fn set_round_input(&self, request: Request<SetRoundInputRequest>) -> Result<Response<SetRoundInputResponse>, Status> {
-        let game_state = self.do_set_input(request.into_inner()).map_err(into_status)?;
+    async fn set_program_input(&self, request: Request<SetProgramInputRequest>) -> Result<Response<SetProgramInputResponse>, Status> {
+        let game_state = self.do_set_program_input(request.into_inner()).map_err(into_status)?;
 
-        let response = SetRoundInputResponse{
+        let response = SetProgramInputResponse{
             state: Some(game_state),
         };
         Ok(Response::new(response))
@@ -67,14 +67,14 @@ impl RoboRallyGameService {
         Ok(proto_game_state)
     }
 
-    fn do_set_input(&self, request: SetRoundInputRequest) -> Result<GameState, Error> {
+    fn do_set_program_input(&self, request: SetProgramInputRequest) -> Result<GameState, Error> {
         let player_input = PlayerInput::parse_from(request.player_input)?;
 
         let mut persistent_state = self.state.lock().unwrap();
         let mut game_state = (*persistent_state).clone();
 
         let engine = GameEngine::new();
-        game_state = engine.set_player_input(game_state, &player_input)?;
+        game_state = engine.set_player_program_input(game_state, &player_input)?;
 
         let proto_game_state = GameState::from(&game_state);
         *persistent_state = game_state;

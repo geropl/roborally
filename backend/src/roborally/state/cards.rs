@@ -61,26 +61,30 @@ impl ProgramCardDeckGenerator {
         }
         let mut it = priorities.into_iter();
 
+        let add_move_card = |cards: &mut Vec<MoveCard>, it: &mut std::collections::hash_set::IntoIter<u32>, moves: &[ESimpleMove]| {
+            cards.push(MoveCard::new_from_moves(cards.len() as u32, it.next().unwrap(), moves));
+        };
+
         for _ in 0..config.count_1_move {
-            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::Forward));
+            add_move_card(&mut cards, &mut it, &[ESimpleMove::Forward]);
         }
         for _ in 0..config.count_2_move {
-            cards.push(MoveCard::new_from_moves(it.next().unwrap(), &[ESimpleMove::Forward, ESimpleMove::Forward]));
+            add_move_card(&mut cards, &mut it, &[ESimpleMove::Forward, ESimpleMove::Forward]);
         }
         for _ in 0..config.count_3_move {
-            cards.push(MoveCard::new_from_moves(it.next().unwrap(), &[ESimpleMove::Forward, ESimpleMove::Forward, ESimpleMove::Forward]));
+            add_move_card(&mut cards, &mut it, &[ESimpleMove::Forward, ESimpleMove::Forward, ESimpleMove::Forward]);
         }
         for _ in 0..config.count_back_up {
-            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::Backward));
+            add_move_card(&mut cards, &mut it, &[ESimpleMove::Backward]);
         }
         for _ in 0..config.count_turn_left {
-            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::TurnLeft));
+            add_move_card(&mut cards, &mut it, &[ESimpleMove::TurnLeft]);
         }
         for _ in 0..config.count_turn_right {
-            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::TurnRight));
+            add_move_card(&mut cards, &mut it, &[ESimpleMove::TurnRight]);
         }
         for _ in 0..config.count_uturn {
-            cards.push(MoveCard::new_from_move(it.next().unwrap(), ESimpleMove::UTurn));
+            add_move_card(&mut cards, &mut it, &[ESimpleMove::UTurn]);
         }
         ProgramCardDeck { cards }
     }
@@ -131,8 +135,11 @@ impl ProgramCardDeck {
     }
 }
 
+pub type MoveCardID = u32;
+
 #[derive(Debug, Clone)]
 pub struct MoveCard {
+    pub id: MoveCardID,
     pub priority: u32,
     pub tmove: Box<dyn TMove + Send>,
 }
@@ -149,21 +156,17 @@ impl Clone for Box<dyn TMove + Send> {
 }
 
 impl MoveCard {
-    pub fn new(priority: u32, tmove: Box<dyn TMove + Send>) -> MoveCard {
+    pub fn new(id: MoveCardID, priority: u32, tmove: Box<dyn TMove + Send>) -> MoveCard {
         MoveCard {
+            id,
             priority,
             tmove,
         }
     }
 
-    pub fn new_from_move(priority: u32, mmove: ESimpleMove) -> MoveCard {
-        let tmove = SimpleMove::new(&[mmove]);
-        MoveCard::new(priority, tmove)
-    }
-
-    pub fn new_from_moves(priority: u32, moves: &[ESimpleMove]) -> MoveCard {
+    pub fn new_from_moves(id: MoveCardID, priority: u32, moves: &[ESimpleMove]) -> MoveCard {
         let tmove = SimpleMove::new(moves);
-        MoveCard::new(priority, tmove)
+        MoveCard::new(id, priority, tmove)
     }
 }
 

@@ -5,6 +5,7 @@ use crate::roborally::state::{
     Round,
     State,
     PlayerID,
+    Player,
     EPoweredDown,
     StateError,
     ERoundPhase,
@@ -20,10 +21,6 @@ pub enum EngineError {
     InvalidPlayerInput {
         player_id: PlayerID,
         msg: String,
-    },
-    #[fail(display = "Double input for player {}!", player_id)]
-    DoublePlayerInput {
-        player_id: PlayerID,
     },
     #[fail(display = "Engine error: {}", msg)]
     GenericAlgorithmError {
@@ -76,10 +73,10 @@ impl GameEngine {
         Ok(game_state.set_phase(EGamePhase::RUNNING))
     }
 
-    pub fn set_player_input(&self, game_state: GameState, input: &PlayerInput) -> Result<GameState, Error> {
+    pub fn set_player_program_input(&self, game_state: GameState, input: &PlayerInput) -> Result<GameState, Error> {
         assert_game_phase(&game_state, EGamePhase::RUNNING)?;
         let round = game_state.current_round()?;
-        let mut round = self.game_engine.set_player_input(round, input)?;
+        let mut round = self.game_engine.set_player_program_input(round, input)?;
 
         if round.phase == ERoundPhase::EXECUTION {
             round = self.game_engine.run_execute(round)?;
@@ -136,39 +133,23 @@ impl RoundEngine {
         Ok(round.advance(state, ERoundPhase::PROGRAMMING))
     }
 
-    fn set_player_input(&self, round: &Round, input: &PlayerInput) -> Result<Round, EngineError> {
+    fn set_player_program_input(&self, round: &Round, input: &PlayerInput) -> Result<Round, EngineError> {
         assert_round_phase(&round, ERoundPhase::PROGRAMMING)?;
         let mut state = round.state.clone();
 
         // 2. Program registers + 3. Announce Power Down
         //  - input:
         //    - registers
+        let new_player = self.set_registers(&state, input)?;
+        state = state.update_player(new_player)?;
+
         //    - if powered_down:
         //       - leave powered down?
         //      else
         //       - player with damaged robots may announce power down _for next turn_
         // TODO Power down
-        let player = state.get_player_or_fail(input.player_id)?;
-        let unlocked_registers_count = player.count_unlocked_registers();
-        if unlocked_registers_count != input.move_cards.len() {
-            return Err(EngineError::InvalidPlayerInput {
-                player_id: input.player_id,
-                msg: format!("Got more program cards ({}) than unlocked registers ({})!", input.move_cards.len(), unlocked_registers_count),
-            });
-        }
 
-        let mut new_player = player.clone();
-        for i in 0..input.move_cards.len() {
-            let register = &mut new_player.registers[i];
-            if register.move_card.is_some() {
-                return Err(EngineError::DoublePlayerInput {
-                    player_id: input.player_id,
-                });
-            }
-            register.move_card = Some(input.move_cards[i].clone()); // TODO Check if the card is present in the player deck!
-        }
-        state = state.update_player(new_player)?;
-
+        // Has this phase ended?
         let next_phase = if all_players_provided_input(&state) {
             ERoundPhase::EXECUTION
         } else {
@@ -176,6 +157,25 @@ impl RoundEngine {
         };
 
         Ok(round.advance(state, next_phase))
+    }
+
+    fn set_registers(&self, state: &State, input: &PlayerInput) -> Result<Player, EngineError> {
+        let player = state.get_player_or_fail(input.player_id)?;
+        let unlocked_registers_count = player.count_unlocked_registers();
+        let input_register_count = input.register_cards_choices.len();
+        if unlocked_registers_count != input_register_count {
+            return Err(EngineError::InvalidPlayerInput {
+                player_id: input.player_id,
+                msg: format!("Got more program cards ({}) than unlocked registers ({})!", input_register_count, unlocked_registers_count),
+            });
+        }
+
+        let mut new_player = player.clone();
+        for i in 0..input.register_cards_choices.len() {
+            let move_card_id = input.register_cards_choices[i];
+            new_player = new_player.choose_card(i, move_card_id)?;
+        }
+        Ok(new_player)
     }
 
     fn run_execute(&self, round: Round) -> Result<Round, EngineError> {

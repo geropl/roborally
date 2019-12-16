@@ -9,6 +9,7 @@ use crate::roborally::state::{
     StateError,
     ERoundPhase,
     EGamePhase,
+    MAX_DAMAGE_TOKENS,
 };
 use super::register_engine::{ RegisterEngine, RegisterEngineError };
 use super::player_input::{ PlayerInput };
@@ -67,9 +68,9 @@ impl GameEngine {
     pub fn initialize(&self, game_state: GameState) -> Result<GameState, EngineError> {
         assert_game_phase(&game_state, EGamePhase::INITIAL)?;
         let mut game_state = game_state;
-        // TODO EGamePhase::PREPARATION: Here is user input necessary: Choose start positions (order random, has to be stored for later choices)
+        // TODO EGamePhase::PREPARATION: User input necessary: Choose start positions (order random, has to be stored for later choices)
 
-        // Create and initialze first round
+        // Create and initialize first round
         game_state = game_state.add_round();
         self.game_engine.run_round_initialization(game_state.current_round()?)?;
         Ok(game_state.set_phase(EGamePhase::RUNNING))
@@ -82,6 +83,8 @@ impl GameEngine {
 
         if round.phase == ERoundPhase::EXECUTION {
             round = self.game_engine.run_execute(round)?;
+
+            // TODO Check for game end criterion
         }
         game_state.update_round(round)
     }
@@ -105,8 +108,8 @@ impl RoundEngine {
         // 0. Prepare
         //  - powered down robot:
         //    - discard all damage tokens
-        for i in 0..state.players.len() {
-            let player = &state.players[i];
+        let player_it = state.active_players_cloned();
+        for player in player_it.iter() {
             if player.robot.powered_down == EPoweredDown::Yes ||
                 player.robot.powered_down == EPoweredDown::NextRound {
                 let mut new_robot = player.robot.set_damage(0);
@@ -121,9 +124,9 @@ impl RoundEngine {
 
         // 1. Deal Program Cards:
         //  - draw 9 cards randomly (- damage tokens) cards
-        for i in 0..state.players.len() {
-            let player = &state.players[i];
-            let cards_to_draw = 9 - player.robot.damage;
+        let player_it = state.active_players_cloned();
+        for player in player_it.iter() {
+            let cards_to_draw = MAX_DAMAGE_TOKENS - player.robot.damage;
             let (deck, cards) = state.deck.take_random_cards(cards_to_draw);
             let new_player = player.set_program_card_deck(cards);
             state = state.update_player(new_player)?;
@@ -192,9 +195,9 @@ impl RoundEngine {
         state = state.lock_registers_according_to_damage();
 
         //  - discard all program cards from registers that aren't locked
-        for i in 0..state.players.len() {
-            let p = &state.players[i];
-            let (cards, new_player) = p.take_program_cards_from_unlocked_registers();
+        let player_it = state.active_players_cloned();
+        for player in player_it.iter() {
+            let (cards, new_player) = player.take_program_cards_from_unlocked_registers();
             let new_deck = state.deck.add_cards(cards);
             state = state.set_deck(new_deck);
             state = state.update_player(new_player)?;
@@ -207,7 +210,7 @@ impl RoundEngine {
 }
 
 fn all_players_provided_input(state: &State) -> bool {
-    state.players.iter()
+    state.active_players()
         .all(|p| p.registers.iter()
             .all(|r| r.move_card.is_some()))
 }

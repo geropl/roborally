@@ -8,7 +8,8 @@ use super::cards::*;
 pub type PlayerID = u32;
 
 pub const REGISTER_COUNT: usize = 5;
-pub const DAMAGE_TOKENS: u32 = 9;
+/// The maximum number of damage tokens that a robot can take and still function. Anything above destroxy the robot.
+pub const MAX_DAMAGE_TOKENS: u32 = 9;
 
 #[derive(Debug, Clone)]
 pub struct PlayerConfig {
@@ -52,16 +53,6 @@ impl Player {
             });
         }
         players
-    }
-
-    #[cfg(test)]
-    pub fn new(id: PlayerID, robot: Robot) -> Player {
-        Player {
-            id,
-            robot,
-            registers: (0..REGISTER_COUNT).map(|_| Register::default()).collect(),
-            program_card_deck: vec![],
-        }
     }
 
     /**
@@ -112,6 +103,10 @@ impl Player {
         // self.registers.iter()
         //     .filter(|r| !r.locked)
         //     .count()
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.robot.life_tokens > 0
     }
 }
 
@@ -175,4 +170,46 @@ impl Default for EPoweredDown {
 pub struct Register {
     pub move_card: Option<MoveCard>,
     pub locked: bool,
+}
+
+pub struct PlayerIter {
+    players: Vec<Player>,
+}
+
+impl PlayerIter {
+    pub fn new(players: Vec<Player>) -> PlayerIter {
+        PlayerIter {
+            players,
+        }
+    }
+
+    pub fn iter(&self) -> PlayerIterator {
+        PlayerIterator::new(&self.players)
+    }
+}
+
+pub struct PlayerIterator<'a> {
+    players: &'a [Player],
+    next_index: usize,
+    _phantom: std::marker::PhantomData<&'a Player>,
+}
+
+impl PlayerIterator<'_> {
+    pub fn new(players: &[Player]) -> PlayerIterator {
+        PlayerIterator {
+            players,
+            next_index: 0,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a> Iterator for PlayerIterator<'a> {
+    type Item = &'a Player;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = self.players.get(self.next_index);
+        self.next_index += 1;
+        result
+    }
 }

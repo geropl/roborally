@@ -9,7 +9,7 @@ use super::*;
 #[derive(Debug, Clone, Default)]
 pub struct State {
     pub board: Arc<Board>,
-    pub players: Vec<Player>,
+    players: Vec<Player>,
     pub deck: ProgramCardDeck,
 }
 
@@ -124,5 +124,26 @@ impl State {
         }
         moves.sort_by(|a, b| a.1.priority.partial_cmp(&b.1.priority).unwrap());
         Ok(moves)
+    }
+
+    pub fn all_players(&self) -> impl Iterator<Item=&Player> {
+        self.players.iter()
+    }
+
+    pub fn active_players(&self) -> impl Iterator<Item=&Player> {
+        self.players.iter()
+            .filter(|p| p.is_active())
+    }
+
+    // This is a work-around for the fact that we want to iterate over players while modifying state (which contains player)
+    pub fn active_players_cloned(&self) -> PlayerIter {
+        PlayerIter::new(self.players.iter()
+            .filter(|p| p.is_active())
+            .cloned()
+            .collect())
+    }
+
+    pub fn register_count(&self) -> usize {
+        self.players[0].registers.len()
     }
 }

@@ -9,10 +9,6 @@ tonic::include_proto!("protocol");
 // Protocol -> state
 #[derive(Debug, Fail)]
 pub enum ProtocolError {
-    // #[fail(display = "Invalid player input for player: {}", player_id)]
-    // InvalidPlayerInput {
-    //     player_id: state::PlayerID,
-    // },
     #[fail(display = "Missing player input!")]
     MissingPlayerInput {
     },
@@ -122,7 +118,7 @@ impl From<&Box<state::State>> for State {
     fn from(state: &Box<state::State>) -> State {
         use std::borrow::Borrow;
 
-        let players: Vec<Player> = state.players.iter()
+        let players: Vec<Player> = state.all_players()
             .map(Player::from)
             .collect();
         State {

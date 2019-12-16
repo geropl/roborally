@@ -34,8 +34,8 @@ impl RegisterEngine {
 
     pub fn execute_registers(&self, state: Box<State>) -> Result<Box<State>, RegisterEngineError> {
         let mut state = state;
-        let register_count = state.players[0].registers.len();  // TODO make configurable or fix tests!
-        for register_index in 0..register_count {
+
+        for register_index in 0..state.register_count() {
             state = self.run_register_phase(state, register_index)?;
         }
         Ok(state)

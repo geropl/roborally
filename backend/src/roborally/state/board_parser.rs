@@ -40,7 +40,7 @@ pub enum ParserError {
 }
 
 pub fn load_board_by_name(name: &str) -> Result<Board, ParserError> {
-    let base_path = PathBuf::from(format!("./backend/data/boards/{}.brd", name));
+    let base_path = PathBuf::from(format!("./data/boards/{}.brd", name));
     if !base_path.exists() {
         return Err(ParserError::FileError{ msg: format!("File not found: {}", base_path.display()) });
     }

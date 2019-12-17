@@ -12,11 +12,6 @@ pub enum ProtocolError {
     #[fail(display = "Missing player input!")]
     MissingPlayerInput {
     },
-    // #[fail(display = "Expected one of enum {}, found value {}!", enum_name, value)]
-    // WrongEnumValue {
-    //     enum_name: String,
-    //     value: i32,
-    // },
 }
 
 impl player_input::PlayerInput {
@@ -29,18 +24,6 @@ impl player_input::PlayerInput {
         })
     }
 }
-
-// impl register_engine::ESimpleMove {
-//     fn parse_from(mmove_i32: i32) -> Result<register_engine::ESimpleMove, ProtocolError> {
-//         match ESimpleMove::from_i32(mmove_i32) {
-//             None => Err(ProtocolError::WrongEnumValue{
-//                 enum_name: String::from("ESimpleMove"),
-//                 value: mmove_i32,
-//             }),
-//             Some(m) => Ok(register_engine::ESimpleMove::from(m)),
-//         }
-//     }
-// }
 
 impl From<ESimpleMove> for register_engine::ESimpleMove {
     fn from(mmove: ESimpleMove) -> register_engine::ESimpleMove {
@@ -62,8 +45,9 @@ impl From<&state::GameState> for GameState {
     fn from(game_state: &state::GameState) -> GameState {
         GameState {
             phase: EGamePhase::from(game_state.phase).into(),
-            initial_state: Some(State::from(&game_state.initial_state)),
-            rounds: game_state.rounds.iter().map(Round::from).collect(),
+            initial_state: Some(State::from(game_state.initial_state())),
+            rounds: game_state.all_rounds().map(Round::from).collect(),
+            game_result: from_game_result(&game_state.game_result),
         }
     }
 }
@@ -79,12 +63,21 @@ impl From<state::EGamePhase> for EGamePhase {
     }
 }
 
+pub fn from_game_result(result: &state::EGameResult) -> Option<game_state::GameResult> {
+    match result {
+        state::EGameResult::None => None,
+        state::EGameResult::Draw{ player_ids } => Some(game_state::GameResult::Draw(GameResultDraw{ player_ids: player_ids.clone() })),
+        state::EGameResult::Win{ player_id } => Some(game_state::GameResult::Win(GameResultWin{ player_id: *player_id })),
+    }
+}
+
 impl From<&state::Round> for Round {
     fn from(round: &state::Round) -> Round {
+        use std::borrow::Borrow;
         Round {
             id: round.id,
             phase: ERoundPhase::from(round.phase).into(),
-            state: Some(State::from(&round.state)),
+            state: Some(State::from(round.state.borrow())),
         }
     }
 }
@@ -101,8 +94,8 @@ impl From<state::ERoundPhase> for ERoundPhase {
     }
 }
 
-impl From<&Box<state::State>> for State {
-    fn from(state: &Box<state::State>) -> State {
+impl From<&state::State> for State {
+    fn from(state: &state::State) -> State {
         use std::borrow::Borrow;
 
         let players: Vec<Player> = state.all_players()
@@ -124,10 +117,23 @@ impl From<&state::Player> for Player {
         let program_card_deck = player.program_card_deck.iter()
             .map(MoveCard::from)
             .collect();
+        let registers = player.registers.iter()
+            .map(Register::from)
+            .collect();
         Player {
             id: player.id,
             robot: Some(Robot::from(&player.robot)),
+            registers,
             program_card_deck,
+        }
+    }
+}
+
+impl From<&state::Register> for Register {
+    fn from(register: &state::Register) -> Register {
+        Register {
+            move_card: register.move_card.as_ref().map(MoveCard::from),
+            locked: register.locked,
         }
     }
 }

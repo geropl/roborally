@@ -11,6 +11,7 @@ pub type PlayerID = u32;
 pub const REGISTER_COUNT: usize = 5;
 /// The maximum number of damage tokens that a robot can take and still function. Anything above destroxy the robot.
 pub const MAX_DAMAGE_TOKENS: u32 = 9;
+pub const DEFAULT_LIFE_TOKENS: u32 = 3;
 
 #[derive(Debug, Clone)]
 pub struct PlayerConfig {
@@ -22,7 +23,7 @@ impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
             player_count: 2,
-            life_tokens: 3,
+            life_tokens: DEFAULT_LIFE_TOKENS,
         }
     }
 }
@@ -125,7 +126,7 @@ impl Player {
     }
 
     pub fn is_active(&self) -> bool {
-        self.robot.life_tokens > 0
+        self.robot.life_tokens > 0 && !self.robot.is_destroyed()
     }
 }
 
@@ -169,6 +170,17 @@ impl Robot {
             powered_down,
             ..*self
         }
+    }
+
+    pub fn die(&self) -> Robot {
+        Robot {
+            damage: 0,
+            ..*self
+        }
+    }
+
+    pub fn is_destroyed(&self) -> bool {
+        self.damage == 0
     }
 }
 

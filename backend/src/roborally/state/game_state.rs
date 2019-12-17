@@ -1,4 +1,4 @@
-use super::{ ProgramCardDeckConfig, BoardConfig, PlayerConfig, State, StateError };
+use super::{ ProgramCardDeckConfig, BoardConfig, PlayerConfig, State, StateError, PlayerID };
 
 use failure::Error;
 
@@ -12,8 +12,9 @@ pub struct GameConfig {
 #[derive(Debug, Clone)]
 pub struct GameState {
     pub phase: EGamePhase,
-    pub initial_state: Box<State>,
-    pub rounds: Vec<Round>,
+    initial_state: Box<State>,
+    rounds: Vec<Round>,
+    pub game_result: EGameResult,
 }
 
 impl GameState {
@@ -23,38 +24,49 @@ impl GameState {
             phase: EGamePhase::INITIAL,
             initial_state,
             rounds: vec![],
+            game_result: EGameResult::None,
         })
     }
 
-    pub fn update_round(&self, round: Round) -> Result<GameState, Error> {
-        let mut new_game_state = self.clone();
-        let i = new_game_state.rounds.iter().position(|r| r.id == round.id)
+    pub fn update_round(&mut self, round: Round) -> Result<(), Error> {
+        let i = self.rounds.iter().position(|r| r.id == round.id)
             .ok_or(StateError::RoundNotFound{ round_id: round.id })?;
-        new_game_state.rounds[i] = round;
-        Ok(new_game_state)
+        self.rounds[i] = round;
+        Ok(())
     }
 
-    pub fn add_round(&self) -> GameState {
-        let mut game_state = self.clone();
+    pub fn add_round(&mut self) {
         let state = match self.rounds.last() {
             Some(r) => &r.state,
-            None => &game_state.initial_state,
+            None => &self.initial_state,
         };
-        let round = Round::new(game_state.rounds.len() as u32, state.clone());
-        game_state.rounds.push(round);
-        game_state
-    }
-
-    pub fn set_phase(&self, new_phase: EGamePhase) -> GameState {
-        let mut game_state = self.clone();
-        game_state.phase = new_phase;
-        game_state
+        let round = Round::new(self.rounds.len() as u32, state.clone());
+        self.rounds.push(round);
     }
 
     pub fn current_round(&self) -> Result<&Round, StateError> {
         match self.rounds.last() {
             None => Err(StateError::GameStateMissingRound{ round_id: None }),
             Some(r) => Ok(r),
+        }
+    }
+
+    pub fn all_rounds(&self) -> impl Iterator<Item=&Round> {
+        self.rounds.iter()
+    }
+
+    pub fn initial_state(&self) -> &State {
+        &self.initial_state
+    }
+}
+
+impl Default for GameState {
+    fn default() -> Self {
+        GameState {
+            phase: EGamePhase::INITIAL,
+            initial_state: Box::from(State::default()),
+            rounds: vec![],
+            game_result: EGameResult::None,
         }
     }
 }
@@ -120,4 +132,16 @@ pub enum ERoundPhase {
      * All activities this round are done. Either start with next round or end this game (if the conditions are met)
      */
     DONE
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum EGameResult {
+    Draw { player_ids: Vec<PlayerID>, },
+    Win { player_id: PlayerID, },
+    None,
+}
+impl EGameResult {
+    pub fn is_some(&self) -> bool {
+        *self != EGameResult::None
+    }
 }

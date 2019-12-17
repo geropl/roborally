@@ -14,17 +14,6 @@ use crate::roborally::engine::player_input::{ PlayerInput };
 pub struct RoboRallyGameService {
     state: Arc<Mutex<s::GameState>>,
 }
-// Needed for Arc<Mutex<GameState>>
-impl Default for s::GameState {
-    fn default() -> Self {
-        use s::*;
-        GameState {
-            phase: EGamePhase::INITIAL,
-            initial_state: Box::from(State::default()),
-            rounds: vec![],
-        }
-    }
-}
 
 #[tonic::async_trait]
 impl RoboRallyGame for RoboRallyGameService {
@@ -58,7 +47,7 @@ impl RoboRallyGameService {
     fn start_new_game(&self) -> Result<GameState, Error> {
         let mut game_state = new_game_state()?;
         let engine = GameEngine::new();
-        game_state = engine.initialize(game_state)?;
+        engine.initialize(&mut game_state)?;
         
         let proto_game_state = GameState::from(&game_state);
         let mut persistent_state = self.state.lock().unwrap();
@@ -74,7 +63,7 @@ impl RoboRallyGameService {
         let mut game_state = (*persistent_state).clone();
 
         let engine = GameEngine::new();
-        game_state = engine.set_player_program_input(game_state, &player_input)?;
+        engine.set_player_program_input(&mut game_state, &player_input)?;
 
         let proto_game_state = GameState::from(&game_state);
         *persistent_state = game_state;

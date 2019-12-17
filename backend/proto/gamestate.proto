@@ -6,6 +6,10 @@ message GameState {
     EGamePhase phase = 1;
     State initial_state = 2;
     repeated Round rounds = 3;
+    oneof game_result {
+        GameResultDraw draw = 4;
+        GameResultWin win = 5;
+    }
 }
 
 enum EGamePhase {
@@ -13,6 +17,14 @@ enum EGamePhase {
     PREPARATION = 1;
     RUNNING = 2;
     ENDED = 3;
+}
+
+message GameResultDraw {
+    repeated uint32 player_ids = 1;
+}
+
+message GameResultWin {
+    uint32 player_id = 1;
 }
 
 message Round {
@@ -60,7 +72,8 @@ message Position {
 message Player {
     uint32 id = 1;
     Robot robot = 2;
-    repeated MoveCard program_card_deck = 3;
+    repeated Register registers = 3;
+    repeated MoveCard program_card_deck = 4;
 }
 
 message Robot {
@@ -69,6 +82,11 @@ message Robot {
     EDirection direction = 3;
     uint32 damage = 4;
     uint32 life_tokens = 5;
+}
+
+message Register {
+    MoveCard move_card = 1;
+    bool locked = 2;
 }
 
 enum EDirection {

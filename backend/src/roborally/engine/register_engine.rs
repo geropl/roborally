@@ -58,7 +58,7 @@ impl RegisterEngine {
         // d. Gears rotate
 
         // 3. Board and robot lasers fire
-        // 4. Robots touch flags and place archive markers
+        // 4. Robots on flags or repair site: update archive markers
 
         Ok(state)
     }
@@ -108,9 +108,10 @@ impl RegisterEngine {
                     // No further chaining or movement possible: we're done here
                     return Ok(state)
                 },
-                EConnection::OffPlatform(pos) => {
-                    // TODO Let robot die
-                    pos
+                EConnection::OffPlatform(_) => {
+                    // Ohoh, someone's going to die...
+                    // This discontinues the chain as well. Multiple robots may end up on that position!
+                    break;
                 },
             };
 
@@ -131,20 +132,22 @@ impl RegisterEngine {
             let robot_id = push_stack.last().unwrap();
             let robot = state.get_robot_by_id_or_fail(*robot_id)?;
             
-            let to = match board.get_neighbor_in(&robot.position, direction) {
-                EConnection::Free(to) => to,
+            let new_robot = match board.get_neighbor_in(&robot.position, direction) {
+                EConnection::Free(to) => {
+                    robot.set_position(to)
+                },
                 EConnection::Walled => {
                     // Cannot move
                     continue;
                 },
-                EConnection::OffPlatform(pos) => {
-                    // TODO Let robot die
-                    pos
+                EConnection::OffPlatform(to) => {
+                    // NOOOOoooooooohhh........
+                    robot.set_position(to)
+                        .die()
                 },
             };
 
-            // Actual move TODO Should field do this, too?
-            let new_robot = robot.set_position(to);
+            // Actual move
             state = state.update_robot(new_robot)?;
             push_stack.pop();
         }

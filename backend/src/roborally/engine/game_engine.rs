@@ -10,6 +10,7 @@ use crate::roborally::state::{
     StateError,
     ERoundPhase,
     EGamePhase,
+    EGameResult,
     MAX_DAMAGE_TOKENS,
 };
 use super::register_engine::{ RegisterEngine, RegisterEngineError };
@@ -62,28 +63,31 @@ impl GameEngine {
         }
     }
 
-    pub fn initialize(&self, game_state: GameState) -> Result<GameState, EngineError> {
+    pub fn initialize(&self, game_state: &mut GameState) -> Result<(), EngineError> {
         assert_game_phase(&game_state, EGamePhase::INITIAL)?;
-        let mut game_state = game_state;
         // TODO EGamePhase::PREPARATION: User input necessary: Choose start positions (order random, has to be stored for later choices)
 
         // Create and initialize first round
-        game_state = game_state.add_round();
+        game_state.add_round();
         self.game_engine.run_round_initialization(game_state.current_round()?)?;
-        Ok(game_state.set_phase(EGamePhase::RUNNING))
+        game_state.phase = EGamePhase::RUNNING;
+        Ok(())
     }
 
-    pub fn set_player_program_input(&self, game_state: GameState, input: &PlayerInput) -> Result<GameState, Error> {
+    pub fn set_player_program_input(&self, game_state: &mut GameState, input: &PlayerInput) -> Result<(), Error> {
         assert_game_phase(&game_state, EGamePhase::RUNNING)?;
         let round = game_state.current_round()?;
         let mut round = self.game_engine.set_player_program_input(round, input)?;
 
         if round.phase == ERoundPhase::EXECUTION {
-            round = self.game_engine.run_execute(round)?;
-
-            // TODO Check for game end criterion
+            let (rnd, game_result) = self.game_engine.run_execute(round)?;
+            round = rnd;
+            if game_result.is_some() {
+                game_state.game_result = game_result;
+            }
         }
-        game_state.update_round(round)
+        game_state.update_round(round)?;
+        Ok(())
     }
 }
 
@@ -178,15 +182,38 @@ impl RoundEngine {
         Ok(new_player)
     }
 
-    fn run_execute(&self, round: Round) -> Result<Round, EngineError> {
+    fn run_execute(&self, round: Round) -> Result<(Round, EGameResult), EngineError> {
         assert_round_phase(&round, ERoundPhase::EXECUTION)?;
         let mut state = round.state.clone();
 
         // 4. Register execution phase
+        let active_player_ids: Vec<u32> = state.active_player_ids();
         state = self.register_engine.execute_registers(state)?;
-        // let mut next_phase = ERoundPhase::CLEANUP;
+
+        // TODO Dead robots may reenter if life_tokens are left
+        
+        // Check for end game condition
+        let active_player_ids_after: Vec<u32> = state.active_player_ids();
+        let game_result = match active_player_ids_after.len() {
+            0 => EGameResult::Draw { player_ids: active_player_ids },
+            1 => EGameResult::Win { player_id: active_player_ids_after[0] },
+            _ => EGameResult::None,
+        };
+        if game_result.is_some() {
+            return Ok((round.advance(state, round.phase), game_result))
+        }
 
         // 5. Cleanup
+        let round = self.run_cleanup(round.advance(state, ERoundPhase::CLEANUP))?;
+        Ok((round, EGameResult::None))
+    }
+
+    fn run_cleanup(&self, round: Round) -> Result<Round, EngineError> {
+        assert_round_phase(&round, ERoundPhase::CLEANUP)?;
+        let mut state = round.state.clone();
+
+        // 5. Cleanup
+        // TODO Reenter play on archive marker
         //  - TODO repairs and upgrades:
         //    - single-wrench: -1 damage token
         //    - crossed-wrench: -1 damage token + option card
@@ -202,8 +229,6 @@ impl RoundEngine {
             state = state.set_deck(new_deck);
             state = state.update_player(new_player)?;
         }
-
-        // TODO When to check for death?
 
         Ok(round.advance(state, ERoundPhase::DONE))
     }

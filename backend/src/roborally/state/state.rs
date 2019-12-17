@@ -115,12 +115,13 @@ impl State {
     
     pub fn get_register_cards_sorted_by_priority(&self, register_index: usize) -> Result<Vec<(PlayerID, MoveCard)>, StateError> {
         let mut moves = Vec::with_capacity(self.players.len());
-        for p in &self.players {
+        for p in self.active_players() {
             let register = &p.registers[register_index];
-            if register.move_card.is_none() {
-                return Err(StateError::EmptyProgramRegister{ player_id: p.id });
-            }
-            moves.push((p.id, register.move_card.clone().unwrap()));
+            let player_card = match &register.move_card {
+                None => return Err(StateError::EmptyProgramRegister{ player_id: p.id }),
+                Some(mc) => (p.id, mc.clone()),
+            };
+            moves.push(player_card);
         }
         moves.sort_by(|a, b| a.1.priority.partial_cmp(&b.1.priority).unwrap());
         Ok(moves)
@@ -133,6 +134,12 @@ impl State {
     pub fn active_players(&self) -> impl Iterator<Item=&Player> {
         self.players.iter()
             .filter(|p| p.is_active())
+    }
+
+    pub fn active_player_ids(&self) -> Vec<PlayerID> {
+        self.active_players()
+            .map(|p| p.id)
+            .collect()
     }
 
     // This is a work-around for the fact that we want to iterate over players while modifying state (which contains player)

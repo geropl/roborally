@@ -4,7 +4,14 @@ use std::fmt;
 
 use failure::Fail;
 
-use crate::roborally::state::{ State, StateError, PlayerID, RobotID, EDirection, EConnection };
+use crate::roborally::state::{
+    State,
+    StateError,
+    PlayerID,
+    RobotID,
+    EDirection,
+    EConnection
+};
 
 #[derive(Debug, Fail)]
 pub enum RegisterEngineError {
@@ -66,6 +73,12 @@ impl RegisterEngine {
     fn perform_move(&self, state: Box<State>, player_id: PlayerID, tmove: Box<dyn TMove>) -> Result<Box<State>, RegisterEngineError> {
         let mut state = state;
         for smove in tmove.iter() {
+            let player = state.get_player_or_fail(player_id)?;
+            if !player.is_active() {
+                // The robot died because he moved off platform: Don't move it anymore!
+                return Ok(state)
+            }
+
             state = self.perform_simple_move(state, player_id, smove)?;
         }
         Ok(state)
@@ -79,8 +92,9 @@ impl RegisterEngine {
             Ok(state.update_robot(new_robot)?)
         } else {
             let robot = state.get_robot_by_player_id_or_fail(player_id)?;
+            let robot_id = robot.id;
             let direction = Self::map_move_to_direction_change(smove, robot.direction);
-            self.try_to_move_robot(state, player_id, direction)
+            self.try_to_move_robot(state, robot_id, direction)
         }
     }
 
@@ -102,7 +116,7 @@ impl RegisterEngine {
             let from = &robot.position;
 
             // Handle different neighbor connection
-            let to = match board.get_neighbor_in(from, direction) {
+            let to = match board.get_neighbor_in(from, direction)? {
                 EConnection::Free(to) => to,
                 EConnection::Walled => {
                     // No further chaining or movement possible: we're done here
@@ -132,7 +146,7 @@ impl RegisterEngine {
             let robot_id = push_stack.last().unwrap();
             let robot = state.get_robot_by_id_or_fail(*robot_id)?;
             
-            let new_robot = match board.get_neighbor_in(&robot.position, direction) {
+            let new_robot = match board.get_neighbor_in(&robot.position, direction)? {
                 EConnection::Free(to) => {
                     robot.set_position(to)
                 },
@@ -257,6 +271,46 @@ mod test {
         assert_eq!(actual_robot1.position, Position { x: 2, y: 1 }, "robot1 position");
         assert_eq!(actual_robot2.direction, EDirection::NORTH, "robot2 direction");
         assert_eq!(actual_robot2.position, Position { x: 4, y: 3 }, "robot2 position");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_dead_robot_does_not_move() -> Result<(), Error> {
+        let (board, _) = create_state()?;
+
+        // Players + Robots
+        let player_id1: u32 = 0;
+        let robot1_pos = Position::new(0, 0);
+        let robot1 = RobotBuilder::default()
+            .id(0)
+            .position(robot1_pos.clone())
+            .direction(EDirection::NORTH)
+            .build().unwrap();
+        let player1 = Player::new_with_move(player_id1, robot1, MoveCard::new_from_moves(0, 1, &[ESimpleMove::Forward, ESimpleMove::Forward, ESimpleMove::Forward]));
+
+        let player_id2: u32 = 1;
+        let robot2_pos = Position::new(1, 0);
+        let robot2 = RobotBuilder::default()
+            .id(1)
+            .position(robot2_pos)
+            .direction(EDirection::SOUTH)
+            .build().unwrap();
+        let player2 = Player::new_with_move(player_id2, robot2, MoveCard::new_from_moves(1, 2, &[ESimpleMove::Forward]));
+        let players = vec![player1, player2];
+
+        // State
+        let state = State::new_with_random_deck(board, players);
+        
+        let engine = RegisterEngine::default();
+        let actual_state = engine.execute_registers(state)?;
+
+        let actual_robot1 = actual_state.get_robot_by_player_id_or_fail(0)?;
+        let actual_robot2 = actual_state.get_robot_by_player_id_or_fail(1)?;
+        assert_eq!(actual_robot1.direction, EDirection::NORTH, "robot1 direction");
+        assert_eq!(actual_robot1.position, Position { x: 0, y: -1 }, "robot1 position");
+        assert_eq!(actual_robot2.direction, EDirection::SOUTH, "robot2 direction");
+        assert_eq!(actual_robot2.position, Position { x: 1, y: 1 }, "robot2 position");
 
         Ok(())
     }

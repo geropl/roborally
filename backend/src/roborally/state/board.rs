@@ -2,6 +2,8 @@
 
 use derive_builder::Builder;
 
+use super::{ ParserError, StateError };
+
 #[derive(Debug)]
 pub struct BoardConfig {
     factory_floor: String,
@@ -27,16 +29,20 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn create_from(config: &BoardConfig) -> Result<Board, super::ParserError> {
+    pub fn create_from(config: &BoardConfig) -> Result<Board, ParserError> {
         super::load_board_by_name(&config.factory_floor)
     }
 
     #[cfg(test)]
-    pub fn load_board_by_name(name: &str) -> Result<Board, super::ParserError> {
+    pub fn load_board_by_name(name: &str) -> Result<Board, ParserError> {
         super::load_board_by_name(name)
     }
 
-    pub fn get_neighbor_in(&self, pos: &Position, direction: EDirection) -> EConnection {
+    pub fn get_neighbor_in(&self, pos: &Position, direction: EDirection) -> Result<EConnection, StateError> {
+        if self.is_off_board(pos) {
+            return Err(StateError::PositionOffBoard{ position: *pos });
+        }
+
         let new_pos = match direction {
             EDirection::NORTH => pos.set_y(pos.y - 1),
             EDirection::SOUTH => pos.set_y(pos.y + 1),
@@ -54,12 +60,12 @@ impl Board {
         if old_tile.walls.contains(&direction)
             // Can only check both sides if the other exists at all...
             || (new_tile.is_some() && new_tile.unwrap().walls.contains(&direction.opposite())) {
-            return EConnection::Walled;
+            return Ok(EConnection::Walled);
         } else if self.is_off_board(&new_pos)
             || (new_tile.is_some() && new_tile.unwrap().ttype == ETileType::NoTile) {
-            return EConnection::OffPlatform(new_pos);
+            return Ok(EConnection::OffPlatform(new_pos));
         }
-        EConnection::Free(new_pos)
+        Ok(EConnection::Free(new_pos))
     }
 
     fn is_off_board(&self, position: &Position) -> bool {

@@ -132,7 +132,7 @@ impl Player {
 
 pub type RobotID = u32;
 
-#[derive(Debug, Default, Clone, Builder)]
+#[derive(Debug, Clone, Builder)]
 #[builder(default)]
 pub struct Robot {
     pub id: RobotID,
@@ -141,6 +141,19 @@ pub struct Robot {
     pub position: Position,
     pub direction: EDirection,
     pub powered_down: EPoweredDown,
+}
+
+impl Default for Robot {
+    fn default() -> Self {
+        Robot {
+            id: 0,
+            damage: 0,
+            life_tokens: DEFAULT_LIFE_TOKENS,
+            position: Position::default(),
+            direction: EDirection::default(),
+            powered_down: EPoweredDown::default(),
+        }
+    }
 }
 
 impl Robot {
@@ -174,13 +187,13 @@ impl Robot {
 
     pub fn die(&self) -> Robot {
         Robot {
-            damage: 0,
+            damage: MAX_DAMAGE_TOKENS + 1,
             ..*self
         }
     }
 
     pub fn is_destroyed(&self) -> bool {
-        self.damage == 0
+        self.damage > MAX_DAMAGE_TOKENS
     }
 }
 

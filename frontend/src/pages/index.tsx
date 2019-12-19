@@ -1,15 +1,16 @@
 import React from "react";
 import { Error } from "grpc-web";
 import * as URL from "url";
-import { GetGameStateRequest, StartGameRequest, StartGameResponse, GetGameStateResponse, SetRoundInputRequest, SetRoundInputResponse } from "ts-client/lib/protocol_pb";
+import { GetGameStateRequest, StartGameRequest, StartGameResponse, GetGameStateResponse, SetProgramInputRequest, SetProgramInputResponse } from "ts-client/lib/protocol_pb";
 import { RoboRallyGameClient } from "ts-client/lib/ProtocolServiceClientPb";
 import { BoardView } from "../components/board/board-view";
-import { MoveCardDebugInput, Register } from "../components/move-card-debug-input";
 import { GameState } from "ts-client/lib/gamestate_pb";
-import { PlayerInput, MoveCard, ESimpleMove, ESimpleMoveMap } from "ts-client/lib/inputs_pb";
+import { ProgramSheet } from "../components/program-sheet";
+import { PlayerInput } from "ts-client/lib/inputs_pb";
 
 interface DashboardState {
-    response: string | undefined,
+    gameState: GameState.AsObject | undefined;
+    error: any;
 }
 
 export default class Dashboard extends React.Component<{}, DashboardState> {
@@ -20,6 +21,21 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
     }
 
     render() {
+        const state = this.state;
+        let programSheets: JSX.Element[] = [];
+        if (state && state.gameState) {
+            const rounds = state.gameState.roundsList;
+            const round = rounds && rounds[rounds.length - 1];
+            const currentState = round && round.state || state.gameState.initialState!;
+            programSheets = currentState.playersList.map(p => {
+                return (
+                    <ProgramSheet
+                        roundId={round && round.id || -1}
+                        player={p}
+                        onPlayerInputClicked={(input) => this.sendPlayerInput(input)} />
+                );
+            });
+        }
         return (
             <div>
                 RoboRally!!!
@@ -27,9 +43,8 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
                     <BoardView />
                     <input type="button" value="StartGame" onClick={() => this.requestStartGame() } />
                     <input type="button" value="GetGameState" onClick={() => this.requestGameState() } />
-                    <MoveCardDebugInput playerId={0} onNewDebugInput={(playerId, rs) => this.setDebugInput(playerId, rs)}/>
-                    <MoveCardDebugInput playerId={1} onNewDebugInput={(playerId, rs) => this.setDebugInput(playerId, rs)}/>
-                    <label id="output">{this.state && this.state.response || ""}</label>
+                    {programSheets}
+                    <label id="output">{state && JSON.stringify(state.gameState) || ""}</label>
                 </div>
             </div>
         );
@@ -41,8 +56,10 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
         }
 
         console.log("received new GameState");
-        const obj = state.toObject();
-        this.setState({ response: JSON.stringify(obj) });
+        this.setState({
+            error: undefined,
+            gameState: state.toObject()
+        });
     }
 
     protected async requestStartGame() {
@@ -62,7 +79,7 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
             });
             this.onNewGameState(response.getState());
         } catch (err) {
-            console.error(err);
+            this.onError(err);
         }
     }
 
@@ -82,70 +99,30 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
             });
             this.onNewGameState(response.getState());
         } catch (err) {
-            console.error(err);
+            this.onError(err);
         }
     }
 
-    protected async setDebugInput(playerId: number, registers: Register[]) {
-        const setInputRequest = new SetRoundInputRequest();
-        const playerInput = new PlayerInput();
-        playerInput.setPlayerId(playerId);
-        const moveCards = registers.map(r => {
-            const moveCard = new MoveCard();
-            moveCard.setPriority(r.priority || NaN);    // Provokes error on backend
-            const moves = this.registerToMoves(r);
-            moveCard.setMovesList(moves);
-            return moveCard;
-        })
-        playerInput.setMoveCardsList(moveCards);
-        setInputRequest.setPlayerInput(playerInput);
+    protected async sendPlayerInput(input: PlayerInput) {
+        const request = new SetProgramInputRequest();
+        request.setPlayerInput(input);
 
         const client = this.getClient();
         try {
-            const response = await new Promise<SetRoundInputResponse>((resolve, reject) => {
-                client.setRoundInput(setInputRequest, null, (err: Error, response: SetRoundInputResponse) => {
+            const response = await new Promise<SetProgramInputResponse>((resolve, reject) => {
+                client.setProgramInput(request, null, (err: Error, response: SetProgramInputResponse) => {
                     if (err) {
                         reject(err);
                         return;
                     }
                     resolve(response);
                 });
+                console.log("Sent SetProgramInputResponse");
             });
             this.onNewGameState(response.getState());
         } catch (err) {
-            console.error(err);
+            this.onError(err);
         }
-    }
-
-    protected registerToMoves(r: Register): ESimpleMoveMap[keyof ESimpleMoveMap][] {
-        const moves: ESimpleMoveMap[keyof ESimpleMoveMap][] = (r.moves || []).map(m => {
-                let move = -1;
-                switch (m) {
-                    case "backward":
-                        move = ESimpleMove.BACKWARD;
-                        break;
-                    case "forward":
-                        move = ESimpleMove.FORWARD;
-                        break;
-                    case "stepleft":
-                        move = ESimpleMove.STEPLEFT;
-                        break;
-                    case "stepright":
-                        move = ESimpleMove.STEPRIGHT;
-                        break;
-                    case "turnleft":
-                        move = ESimpleMove.TURNLEFT;
-                        break;
-                    case "turnright":
-                        move = ESimpleMove.TURNRIGHT;
-                        break;
-                    case "uturn":
-                        move = ESimpleMove.UTURN;
-                        break;
-                }
-                return move as ESimpleMoveMap[keyof ESimpleMoveMap];
-            });
-        return moves;
     }
 
     protected getClient() {
@@ -154,6 +131,11 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
             this.client = new RoboRallyGameClient(connStr);
         }
         return this.client;
+    }
+
+    protected onError(err: any) {
+        console.error(err);
+        this.setState({ error: err });
     }
 
     protected getGitpodConnectionString(): string {

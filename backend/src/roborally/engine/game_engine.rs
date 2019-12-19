@@ -63,13 +63,15 @@ impl GameEngine {
         }
     }
 
-    pub fn initialize(&self, game_state: &mut GameState) -> Result<(), EngineError> {
+    pub fn initialize(&self, game_state: &mut GameState) -> Result<(), Error> {
         assert_game_phase(&game_state, EGamePhase::INITIAL)?;
         // TODO EGamePhase::PREPARATION: User input necessary: Choose start positions (order random, has to be stored for later choices)
 
         // Create and initialize first round
-        game_state.add_round();
-        self.game_engine.run_round_initialization(game_state.current_round()?)?;
+        let round = game_state.add_round();
+        let round = self.game_engine.run_round_initialization(round)?;
+        game_state.update_round(round)?;
+
         game_state.phase = EGamePhase::RUNNING;
         Ok(())
     }
@@ -86,7 +88,15 @@ impl GameEngine {
                 game_state.game_result = game_result;
             }
         }
+        let current_phase = round.phase;
         game_state.update_round(round)?;
+
+        // Has current round ended? Start new!
+        if current_phase == ERoundPhase::DONE {
+            let round = game_state.add_round();
+            let round = self.game_engine.run_round_initialization(round)?;
+            game_state.update_round(round)?;
+        }
         Ok(())
     }
 }

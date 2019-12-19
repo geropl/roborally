@@ -51,4 +51,8 @@ pub enum StateError {
         player_id: PlayerID,
         move_card_id: MoveCardID,
     },
+    #[fail(display = "Position off board: {:?}", position)]
+    PositionOffBoard {
+        position: Position,
+    },
 }

@@ -35,13 +35,14 @@ impl GameState {
         Ok(())
     }
 
-    pub fn add_round(&mut self) {
+    pub fn add_round(&mut self) -> &Round {
         let state = match self.rounds.last() {
             Some(r) => &r.state,
             None => &self.initial_state,
         };
         let round = Round::new(self.rounds.len() as u32, state.clone());
         self.rounds.push(round);
+        self.rounds.last().unwrap()
     }
 
     pub fn current_round(&self) -> Result<&Round, StateError> {

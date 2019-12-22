@@ -49,6 +49,12 @@ impl State {
             .ok_or(StateError::RobotNotFoundID{ robot_id })
     }
 
+    pub fn get_robot_at_position(&self, position: &Position) -> Option<&Robot> {
+        self.players.iter()
+            .find(|p| p.robot.position.eq(position))
+            .map(|p| &p.robot)
+    }
+
     pub fn get_player_or_fail(&self, player_id: PlayerID) -> Result<&Player, StateError> {
         self.players.iter()
             .find(|p| p.id == player_id)
@@ -80,6 +86,22 @@ impl State {
 
         let mut new_players = self.players.clone();
         new_players[old_player_index] = new_player;
+
+        Ok(Box::from(State {
+            players: new_players,
+            board: self.board.clone(),
+            deck: self.deck.clone(),
+        }))
+    }
+
+    pub fn update_player_fn<F>(&self, player_id: PlayerID, new_player_fn: F) -> Result<Box<State>, Error>
+        where F: Fn(&mut Player) -> Result<(), Error> {
+        let old_player_index = self.players.iter()
+            .position(|p| p.id == player_id)
+            .ok_or(StateError::PlayerNotFound{ player_id })?;
+
+        let mut new_players = self.players.clone();
+        new_player_fn(&mut new_players[old_player_index])?;
 
         Ok(Box::from(State {
             players: new_players,

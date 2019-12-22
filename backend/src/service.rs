@@ -4,11 +4,11 @@ use failure::Error;
 use std::sync::{ Arc, Mutex };
 
 use crate::protocol::server::RoboRallyGame;
-use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetProgramInputRequest, SetProgramInputResponse };
+use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetProgramInputRequest, SetProgramInputResponse, SetStartPositionRequest, SetStartPositionResponse };
 
 use crate::roborally::state as s;
 use crate::roborally::engine::game_engine::{ GameEngine };
-use crate::roborally::engine::player_input::{ PlayerInput };
+use crate::roborally::engine::player_input::{ ProgramInput, StartPositionInput };
 
 #[derive(Default)]
 pub struct RoboRallyGameService {
@@ -23,6 +23,15 @@ impl RoboRallyGame for RoboRallyGameService {
         Ok(Response::new(StartGameResponse{
             state: Some(game_state),
         }))
+    }
+
+    async fn set_start_position(&self, request: Request<SetStartPositionRequest>) -> Result<Response<SetStartPositionResponse>, Status> {
+        let game_state = self.do_set_start_position(request.into_inner()).map_err(into_status)?;
+
+        let response = SetStartPositionResponse{
+            state: Some(game_state),
+        };
+        Ok(Response::new(response))
     }
 
     async fn set_program_input(&self, request: Request<SetProgramInputRequest>) -> Result<Response<SetProgramInputResponse>, Status> {
@@ -56,14 +65,29 @@ impl RoboRallyGameService {
         Ok(proto_game_state)
     }
 
-    fn do_set_program_input(&self, request: SetProgramInputRequest) -> Result<GameState, Error> {
-        let player_input = PlayerInput::parse_from(request.player_input)?;
+    fn do_set_start_position(&self, request: SetStartPositionRequest) -> Result<GameState, Error> {
+        let start_position_input = StartPositionInput::parse_from(request.start_position)?;
 
         let mut persistent_state = self.state.lock().unwrap();
         let mut game_state = (*persistent_state).clone();
 
         let engine = GameEngine::new();
-        engine.set_player_program_input(&mut game_state, &player_input)?;
+        engine.set_start_position(&mut game_state, &start_position_input)?;
+
+        let proto_game_state = GameState::from(&game_state);
+        *persistent_state = game_state;
+
+        Ok(proto_game_state)
+    }
+
+    fn do_set_program_input(&self, request: SetProgramInputRequest) -> Result<GameState, Error> {
+        let program_input = ProgramInput::parse_from(request.program_input)?;
+
+        let mut persistent_state = self.state.lock().unwrap();
+        let mut game_state = (*persistent_state).clone();
+
+        let engine = GameEngine::new();
+        engine.set_player_program_input(&mut game_state, &program_input)?;
 
         let proto_game_state = GameState::from(&game_state);
         *persistent_state = game_state;

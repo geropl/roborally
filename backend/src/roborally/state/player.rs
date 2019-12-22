@@ -12,6 +12,7 @@ pub const REGISTER_COUNT: usize = 5;
 /// The maximum number of damage tokens that a robot can take and still function. Anything above destroxy the robot.
 pub const MAX_DAMAGE_TOKENS: u32 = 9;
 pub const DEFAULT_LIFE_TOKENS: u32 = 3;
+pub const INITIAL_ROBOT_POSITION: Position = Position { x: -1, y: -1 };
 
 #[derive(Debug, Clone)]
 pub struct PlayerConfig {
@@ -34,6 +35,7 @@ pub struct Player {
     pub robot: Robot,
     pub registers: Vec<Register>,
     pub program_card_deck: Vec<MoveCard>,
+    pub input_required: bool,
 }
 
 impl Player {
@@ -47,11 +49,12 @@ impl Player {
                     damage: 0,
                     life_tokens: config.life_tokens,
                     powered_down: EPoweredDown::No,
-                    position: Position::new(0, 0),
+                    position: INITIAL_ROBOT_POSITION,
                     direction: EDirection::SOUTH,
                 },
                 registers: (0..REGISTER_COUNT).map(|_| Register::default()).collect(),
                 program_card_deck: vec![],
+                input_required: false,
             });
         }
         players
@@ -70,6 +73,7 @@ impl Player {
                 locked: false
             }],
             program_card_deck: vec![],
+            input_required: false,
         }
     }
 

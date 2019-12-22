@@ -1,15 +1,22 @@
 import React from "react";
-import { Player, Register, ESimpleMove, MoveCard } from "ts-client/lib/gamestate_pb";
-import { PlayerInput } from "ts-client/lib/inputs_pb";
+import { Player, Register, ESimpleMove, MoveCard, EGamePhaseMap, EGamePhase } from "ts-client/lib/gamestate_pb";
+import { ProgramInput, StartPositionInput } from "ts-client/lib/inputs_pb";
 
 export interface ProgramSheetProps {
-    roundId: number; // hack to invalidate component
     player: Player.AsObject;
-    onPlayerInputClicked: (input: PlayerInput) => void;
+
+    gamePhase: EGamePhaseMap[keyof EGamePhaseMap];
+    availableStartPositionIds: number[];
+
+    roundId: number; // hack to invalidate component
+
+    onSendProgramInput: (input: ProgramInput) => void;
+    onSendStartPosition: (input: StartPositionInput) => void;
 }
 
 export interface ProgramSheetState {
     localCards: RegisterCardState[];
+    startPositionId?: number;
 }
 
 interface RegisterCardState {
@@ -32,6 +39,50 @@ export class ProgramSheet extends React.Component<ProgramSheetProps, ProgramShee
     render() {
         const player = this.props.player;
         const robot = player.robot!;
+
+        let inputArea: JSX.Element | undefined = undefined;
+        if (this.props.gamePhase === EGamePhase.PREPARATION) {
+            inputArea = this.renderStartPositionChooser();
+        } else if (this.props.gamePhase === EGamePhase.RUNNING) {
+            inputArea = this.renderRegisterProgramSheet();
+        }
+
+        return (
+            <div key={player.id} style={{ border: '1px solid black'}}>
+                <p>Life Tokens: {robot.lifeTokens}</p>
+                <p>Damage: {robot.damage}</p>
+                {inputArea}
+            </div>
+        );
+    }
+
+    protected renderStartPositionChooser(): JSX.Element {
+        const player = this.props.player;
+        return (
+            <div>
+                <input
+                    type="text"
+                    disabled={!player.inputRequired}
+                    value={this.state.startPositionId || ""}
+                    onChange={(e) => this.onStartPositionIdChange(e)}/>
+                <input type="button" disabled={!player.inputRequired} onClick={() => this.onSendStartPositionClicked()} value="Send" />
+                <div>{JSON.stringify(this.props.availableStartPositionIds)}</div>
+            </div>
+        );
+    }
+
+    protected onStartPositionIdChange(event: React.ChangeEvent<HTMLInputElement>) {
+        try {
+            this.setState({
+                startPositionId: Number.parseInt(event.target.value)
+            });
+        } catch (err) {
+        }
+    }
+
+    protected renderRegisterProgramSheet(): JSX.Element {
+        const player = this.props.player;
+        const robot = player.robot!;
         
         const inputNeeded = robot.damage < 9
             && robot.lifeTokens > 0
@@ -49,15 +100,12 @@ export class ProgramSheet extends React.Component<ProgramSheetProps, ProgramShee
                     local={local} />
             );
         });
-
         return (
-            <div key={player.id} style={{ border: '1px solid black'}}>
-                <p>Life Tokens: {robot.lifeTokens}</p>
-                <p>Damage: {robot.damage}</p>
+            <div>
                 <div style={{ display: 'flex', flexDirection: 'row' }}>
                     {registers}
                 </div>
-                <input type="button" disabled={!inputNeeded} onClick={() => this.onSendClicked()} value="Send" />
+                <input type="button" disabled={!inputNeeded} onClick={() => this.onSendProgramInputClicked()} value="Send" />
                 <div>{JSON.stringify(player.programCardDeckList)}</div>
             </div>
         );
@@ -85,11 +133,18 @@ export class ProgramSheet extends React.Component<ProgramSheetProps, ProgramShee
         }
     }
 
-    protected onSendClicked() {
-        const input = new PlayerInput();
+    protected onSendProgramInputClicked() {
+        const input = new ProgramInput();
         input.setPlayerId(this.props.player.id);
         input.setRegisterCardsChoicesList(this.state.localCards.map(c => c.moveCardId || 0));
-        this.props.onPlayerInputClicked(input);
+        this.props.onSendProgramInput(input);
+    }
+
+    protected onSendStartPositionClicked() {
+        const input = new StartPositionInput();
+        input.setPlayerId(this.props.player.id);
+        input.setStartPositionId(this.state.startPositionId || 0);
+        this.props.onSendStartPosition(input);
     }
 }
 

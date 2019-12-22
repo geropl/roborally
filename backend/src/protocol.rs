@@ -14,13 +14,24 @@ pub enum ProtocolError {
     },
 }
 
-impl player_input::PlayerInput {
-    pub fn parse_from(player_input: Option<PlayerInput>) -> Result<player_input::PlayerInput, ProtocolError> {
+impl player_input::ProgramInput {
+    pub fn parse_from(player_input: Option<ProgramInput>) -> Result<player_input::ProgramInput, ProtocolError> {
         let player_input = player_input.ok_or(ProtocolError::MissingPlayerInput{})?;
 
-        Ok(player_input::PlayerInput {
+        Ok(player_input::ProgramInput {
             player_id: player_input.player_id,
             register_cards_choices: player_input.register_cards_choices, 
+        })
+    }
+}
+
+impl player_input::StartPositionInput {
+    pub fn parse_from(player_input: Option<StartPositionInput>) -> Result<player_input::StartPositionInput, ProtocolError> {
+        let player_input = player_input.ok_or(ProtocolError::MissingPlayerInput{})?;
+
+        Ok(player_input::StartPositionInput {
+            player_id: player_input.player_id,
+            start_position_id: player_input.start_position_id, 
         })
     }
 }
@@ -43,9 +54,11 @@ impl From<ESimpleMove> for register_engine::ESimpleMove {
 // State -> protocol
 impl From<&state::GameState> for GameState {
     fn from(game_state: &state::GameState) -> GameState {
+        use std::borrow::Borrow;
         GameState {
             phase: EGamePhase::from(game_state.phase).into(),
             initial_state: Some(State::from(game_state.initial_state())),
+            start_state: Some(State::from(game_state.start_state.borrow())),
             rounds: game_state.all_rounds().map(Round::from).collect(),
             game_result: from_game_result(&game_state.game_result),
         }
@@ -125,6 +138,7 @@ impl From<&state::Player> for Player {
             robot: Some(Robot::from(&player.robot)),
             registers,
             program_card_deck,
+            input_required: player.input_required,
         }
     }
 }
@@ -202,6 +216,10 @@ impl From<&state::Tile> for Tile {
             position: Some((&tile.position).into()),
             r#type: ttype.into(),
             walls,
+            start_position_id: match tile.start_position_id {
+                None => None,
+                Some(id) => Some(StartPositionId{ id }),
+            },
         }
     }
 }

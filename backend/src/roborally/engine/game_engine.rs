@@ -12,9 +12,11 @@ use crate::roborally::state::{
     EGamePhase,
     EGameResult,
     MAX_DAMAGE_TOKENS,
+    StartPositionID,
+    Position,
 };
 use super::register_engine::{ RegisterEngine, RegisterEngineError };
-use super::player_input::{ PlayerInput };
+use super::player_input::{ ProgramInput, StartPositionInput };
 
 #[derive(Debug, Fail)]
 pub enum EngineError {
@@ -22,6 +24,16 @@ pub enum EngineError {
     InvalidPlayerInput {
         player_id: PlayerID,
         msg: String,
+    },
+    #[fail(display = "Invalid start position choice for player {}: {}", player_id, start_position_id)]
+    InvalidStartPositionInput {
+        player_id: PlayerID,
+        start_position_id: StartPositionID,
+    },
+    #[fail(display = "Start position {:?} already taken. {}", start_position, player_id)]
+    StartPositionAlreadyTaken {
+        player_id: PlayerID,
+        start_position: Position,
     },
     #[fail(display = "Engine error: {}", msg)]
     GenericAlgorithmError {
@@ -65,18 +77,78 @@ impl GameEngine {
 
     pub fn initialize(&self, game_state: &mut GameState) -> Result<(), Error> {
         assert_game_phase(&game_state, EGamePhase::INITIAL)?;
-        // TODO EGamePhase::PREPARATION: User input necessary: Choose start positions (order random, has to be stored for later choices)
 
-        // Create and initialize first round
-        let round = game_state.add_round();
-        let round = self.game_engine.run_round_initialization(round)?;
-        game_state.update_round(round)?;
+        // Choose start positions (ordered by player precedence)
+        let fist_player_id = game_state.first_player_id_by_precedence();
+        game_state.start_state = game_state.start_state.update_player_fn(fist_player_id, |p| {
+            p.input_required = true;
+            Ok(())
+        })?;
 
-        game_state.phase = EGamePhase::RUNNING;
+        game_state.phase = EGamePhase::PREPARATION;
         Ok(())
     }
 
-    pub fn set_player_program_input(&self, game_state: &mut GameState, input: &PlayerInput) -> Result<(), Error> {
+    pub fn set_start_position(&self, game_state: &mut GameState, input: &StartPositionInput) -> Result<(), Error> {
+        assert_game_phase(&game_state, EGamePhase::PREPARATION)?;
+
+        // Set start position
+        game_state.start_state = self.do_set_start_position(&game_state.start_state, input)?;
+
+        // Mark next as active
+        if let Some(next_player_id) = game_state.next_player_id_by_precedence(input.player_id) {
+            game_state.start_state = game_state.start_state.update_player_fn(next_player_id, |p| {
+                p.input_required = true;
+                Ok(())
+            })?;
+            // let mut new_player: Player;
+            // for player in game_state.start_state.all_players() {
+            //     if player.id == next_player_id {
+            //         new_player = player.set_input_required(true);
+            //         break;
+            //     }
+            // }
+            // game_state.start_state = game_state.start_state.update_player(new_player)?;
+        } else {
+            // Create and initialize first round
+            let round = game_state.add_round();
+            let round = self.game_engine.run_round_initialization(round)?;
+            game_state.update_round(round)?;
+
+            game_state.phase = EGamePhase::RUNNING;
+        }
+        Ok(())
+    }
+
+    fn do_set_start_position(&self, state: &State, input: &StartPositionInput) -> Result<Box<State>, Error> {
+        // TODO Move this into state
+        let state = state.update_player_fn(input.player_id, |player| {
+            if !player.input_required {
+                return Err(EngineError::InvalidStartPositionInput{ player_id: player.id, start_position_id: input.start_position_id }.into());
+            }
+            player.input_required = false;
+
+            let start_position = state.board.get_start_position_or_fail(input.start_position_id)?;
+            if state.get_robot_at_position(&start_position).is_some() {
+                return Err(EngineError::StartPositionAlreadyTaken{ player_id: player.id, start_position }.into());
+            }
+            player.robot.position = start_position;
+            Ok(())
+        })?;
+        // let player = state.get_player_or_fail(input.player_id)?;
+        // if !player.input_required {
+        //     return Err(EngineError::InvalidStartPositionInput{ player_id: player.id, start_position_id: input.start_position_id });
+        // }
+
+        // let mut new_player = player.set_input_required(false);
+        // let start_position = state.board.get_start_position_or_fail(input.start_position_id)?;
+        // new_player.robot = new_player.robot.set_position(start_position);
+        // let state = state.update_player(new_player)?;
+
+        Ok(state)
+    }
+
+    pub fn set_player_program_input(&self, game_state: &mut GameState, input: &ProgramInput) -> Result<(), Error> {
         assert_game_phase(&game_state, EGamePhase::RUNNING)?;
         let round = game_state.current_round()?;
         let mut round = self.game_engine.set_player_program_input(round, input)?;
@@ -112,7 +184,7 @@ impl RoundEngine {
         }
     }
     
-    fn run_round_initialization(&self, round: &Round) -> Result<Round, EngineError> {
+    fn run_round_initialization(&self, round: &Round) -> Result<Round, Error> {
         assert_round_phase(&round, ERoundPhase::INITIALIZATION)?;
         let mut state = round.state.clone();
 
@@ -147,7 +219,7 @@ impl RoundEngine {
         Ok(round.advance(state, ERoundPhase::PROGRAMMING))
     }
 
-    fn set_player_program_input(&self, round: &Round, input: &PlayerInput) -> Result<Round, EngineError> {
+    fn set_player_program_input(&self, round: &Round, input: &ProgramInput) -> Result<Round, EngineError> {
         assert_round_phase(&round, ERoundPhase::PROGRAMMING)?;
         let mut state = round.state.clone();
 
@@ -164,7 +236,7 @@ impl RoundEngine {
         // TODO Power down
 
         // Has this phase ended?
-        let next_phase = if all_players_provided_input(&state) {
+        let next_phase = if all_players_provided_program_input(&state) {
             ERoundPhase::EXECUTION
         } else {
             round.phase
@@ -173,7 +245,7 @@ impl RoundEngine {
         Ok(round.advance(state, next_phase))
     }
 
-    fn set_registers(&self, state: &State, input: &PlayerInput) -> Result<Player, EngineError> {
+    fn set_registers(&self, state: &State, input: &ProgramInput) -> Result<Player, EngineError> {
         let player = state.get_player_or_fail(input.player_id)?;
         let unlocked_registers_count = player.count_unlocked_registers();
         let input_register_count = input.register_cards_choices.len();
@@ -244,7 +316,7 @@ impl RoundEngine {
     }
 }
 
-fn all_players_provided_input(state: &State) -> bool {
+fn all_players_provided_program_input(state: &State) -> bool {
     state.active_players()
         .all(|p| p.registers.iter()
             .all(|r| r.move_card.is_some()))

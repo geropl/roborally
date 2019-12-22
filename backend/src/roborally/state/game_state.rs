@@ -13,6 +13,8 @@ pub struct GameConfig {
 pub struct GameState {
     pub phase: EGamePhase,
     initial_state: Box<State>,
+    pub start_state: Box<State>,
+    player_precedence: Vec<PlayerID>,   // TODO move this into state?
     rounds: Vec<Round>,
     pub game_result: EGameResult,
 }
@@ -20,9 +22,12 @@ pub struct GameState {
 impl GameState {
     pub fn create_from(config: &GameConfig) -> Result<GameState, Error> {
         let initial_state = State::create_from(config)?;
+        let player_precedence = GameState::random_player_precedence(&initial_state);
         Ok(GameState {
             phase: EGamePhase::INITIAL,
+            start_state: initial_state.clone(),
             initial_state,
+            player_precedence,
             rounds: vec![],
             game_result: EGameResult::None,
         })
@@ -59,13 +64,37 @@ impl GameState {
     pub fn initial_state(&self) -> &State {
         &self.initial_state
     }
+
+    pub fn first_player_id_by_precedence(&self) -> PlayerID {
+        *self.player_precedence.first().unwrap()
+    }
+
+    pub fn next_player_id_by_precedence(&self, current_id: PlayerID) -> Option<PlayerID> {
+        match self.player_precedence.iter().position(|pid| *pid == current_id) {
+            None => None,   // TODO should be an error, really. Would be straight forward if this was in State...
+            Some(current_position) => self.player_precedence.get(current_position + 1).cloned(),
+        }
+    }
+
+    fn random_player_precedence(state: &State) -> Vec<PlayerID> {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+
+        let mut ids = state.active_player_ids();
+        ids.shuffle(&mut rng);
+        ids
+    }
 }
 
+// This is only needed to initialize Arc<GameState> and not used anywhere in th game
 impl Default for GameState {
     fn default() -> Self {
+        let initial_state = Box::from(State::default());
         GameState {
             phase: EGamePhase::INITIAL,
-            initial_state: Box::from(State::default()),
+            start_state: initial_state.clone(),
+            initial_state,
+            player_precedence: vec![],
             rounds: vec![],
             game_result: EGameResult::None,
         }

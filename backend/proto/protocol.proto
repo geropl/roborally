@@ -9,6 +9,7 @@ service RoboRallyGame {
     rpc StartGame (StartGameRequest) returns (StartGameResponse) {}
     rpc GetGameState (GetGameStateRequest) returns (GetGameStateResponse) {}
     rpc SetProgramInput (SetProgramInputRequest) returns (SetProgramInputResponse) {}
+    rpc SetStartPosition (SetStartPositionRequest) returns (SetStartPositionResponse) {}
 }
 
 message StartGameRequest {
@@ -28,9 +29,17 @@ message GetGameStateResponse {
 }
 
 message SetProgramInputRequest {
-    PlayerInput player_input = 1;
+    ProgramInput program_input = 1;
 }
 
 message SetProgramInputResponse {
+    GameState state = 1;
+}
+
+message SetStartPositionRequest {
+    StartPositionInput start_position = 1;
+}
+
+message SetStartPositionResponse {
     GameState state = 1;
 }

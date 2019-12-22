@@ -12,7 +12,7 @@ pub struct BoardConfig {
 impl Default for BoardConfig {
     fn default() -> Self {
         Self {
-            factory_floor: String::from("test1"),
+            factory_floor: String::from("test-full-1"),
         }
     }
 }
@@ -66,6 +66,17 @@ impl Board {
             return Ok(EConnection::OffPlatform(new_pos));
         }
         Ok(EConnection::Free(new_pos))
+    }
+
+    pub fn get_start_position_or_fail(&self, start_position_id: StartPositionID) -> Result<Position, StateError> {
+        for tile in &self.tiles {
+            if let Some(id) = tile.start_position_id {
+                if id == start_position_id {
+                    return Ok(tile.position)
+                }
+            }
+        }
+        Err(StateError::StartPositionNotFoundID{ start_position_id })
     }
 
     fn is_off_board(&self, position: &Position) -> bool {
@@ -126,11 +137,14 @@ impl Default for EDirection {
     }
 }
 
+pub type StartPositionID = u32;
+
 #[derive(Debug, Builder)]
 pub struct Tile {
     pub position: Position,
     pub ttype: ETileType,
     pub walls: Vec<EDirection>,
+    pub start_position_id: Option<StartPositionID>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]

@@ -5,10 +5,11 @@ package protocol;
 message GameState {
     EGamePhase phase = 1;
     State initial_state = 2;
-    repeated Round rounds = 3;
+    State start_state = 3;
+    repeated Round rounds = 4;
     oneof game_result {
-        GameResultDraw draw = 4;
-        GameResultWin win = 5;
+        GameResultDraw draw = 5;
+        GameResultWin win = 6;
     }
 }
 
@@ -57,6 +58,11 @@ message Tile {
     Position position = 1;
     ETileType type = 2;
     repeated EDirection walls = 3;
+    StartPositionID start_position_id = 4;
+}
+
+message StartPositionID {
+    uint32 id = 1;
 }
 
 enum ETileType {
@@ -74,6 +80,7 @@ message Player {
     Robot robot = 2;
     repeated Register registers = 3;
     repeated MoveCard program_card_deck = 4;
+    bool input_required = 5;
 }
 
 message Robot {

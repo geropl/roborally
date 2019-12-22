@@ -55,4 +55,8 @@ pub enum StateError {
     PositionOffBoard {
         position: Position,
     },
+    #[fail(display = "Start position ID not found: {}", start_position_id)]
+    StartPositionNotFoundID {
+        start_position_id: StartPositionID,
+    },
 }

@@ -7,3 +7,5 @@ backend/target/**
 target/**
 
 backend/ts-client/lib/**
+
+google-cloud-sdk

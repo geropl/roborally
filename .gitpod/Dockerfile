@@ -14,6 +14,7 @@ RUN bash -lc "rustup install beta && \
         rust-analysis \
         rust-src \
         clippy"
+RUN bash -lc "cargo install cargo-edit; cargo install cargo-tree"
 
 USER root
 

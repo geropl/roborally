@@ -1,0 +1,36 @@
+[package]
+name = "proxy"
+version = "0.1.0"
+authors = ["Gero Posmyk-Leinemann <gero.posmyk-leinemann@typefox.io>"]
+edition = "2018"
+
+[lib]
+name = "singularlib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "singular"
+path = "src/main.rs"
+
+[dependencies]
+# hyper-reverse-proxy = "0.4"
+hyper = "0.13"
+# futures = "0.1"
+
+# TODO Should be "0.21.2" but cannot due to version conflict on "http" crate
+# kube = { version = "0.23.0", features = ["openapi"] }
+kube = { git = "https://github.com/geropl/kube-rs", rev = "ce73d1b1ba399a82e464aca7d1d1e63270e149b5",  features = ["openapi"] }
+k8s-openapi = { version = "0.6.0", default-features = false, features = ["v1_15"] }
+futures = "0.3"
+
+tokio = { version = "0.2.11", features = ["full"] }
+# tokio-timer = "0.2.12"
+# futures-timer = "2.0.2"
+# async-std = "1.4.0"
+
+anyhow = "1.0.26"
+
+slog = "2.5.2"
+slog-json = "2.3.0"
+slog-term = "2.4.2"
+slog-async = "2.3.0"

@@ -1,6 +1,4 @@
-use std::fmt;
-
-use anyhow;
+use anyhow::Result;
 use kube::{
     api::{
         Api
@@ -8,27 +6,18 @@ use kube::{
     client::APIClient,
 };
 
-use super::util::to_anyhow;
+use super::protocol::{
+    SingularEndpoint,
+    ServiceCoordinates
+};
 
-#[derive(Clone)]
-pub struct SingularEndpoint {
-    ip: String,
-    port: i32,
-}
-
-impl fmt::Display for SingularEndpoint {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.ip, self.port)
-    }
-}
-
-pub async fn get_service_endpoint(client: APIClient) -> anyhow::Result<Vec<SingularEndpoint>> {
-    let endpoints_api = Api::v1Endpoint(client).within("ingress");
-    let endpoint = endpoints_api.get("staging-proxy")
+pub async fn get_service_endpoint(client: APIClient, service_coords: &ServiceCoordinates) -> Result<Vec<SingularEndpoint>> {
+    let endpoints_api = Api::v1Endpoint(client)
+        .within(&service_coords.namespace);
+    let endpoint = endpoints_api.get(&service_coords.name)
         .await
         .map_err(to_anyhow)?;
     
-    let port: i32 = 80;
     let mut result: Option<Vec<SingularEndpoint>> = None;
     for subset in endpoint.subsets {
         let (addrs, ports) = match (subset.addresses, subset.ports) {
@@ -39,7 +28,7 @@ pub async fn get_service_endpoint(client: APIClient) -> anyhow::Result<Vec<Singu
             continue;
         }
 
-        let port = match ports.iter().find(|&p| p.port == port) {
+        let port = match ports.iter().find(|&p| p.port == service_coords.port) {
             Some(p) => p,
             None => continue,
         };
@@ -54,4 +43,8 @@ pub async fn get_service_endpoint(client: APIClient) -> anyhow::Result<Vec<Singu
         break;
     }
     result.ok_or_else(|| anyhow!("Could not find any Endpoint matching port and service name!"))
+}
+
+pub fn to_anyhow(kube_err: kube::Error) -> anyhow::Error {
+    anyhow!("{}", kube_err)
 }

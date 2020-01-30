@@ -1,41 +1,45 @@
-// use hyper::server::conn::AddrStream;
-// use hyper::{Body, Request, Server};
-// use hyper::service::{service_fn, make_service_fn};
-use hyper::Client;
 
-use futures::future;
-
-use tokio::{
-    task
-};
-use tokio::time::delay_for;
-
-#[macro_use] extern crate anyhow;
-use anyhow::{Result, Context};
-
-#[macro_use] extern crate slog;
-
-use kube::{
-    config,
-    client::APIClient
-};
-
-use std::time::Duration;
-
+mod protocol;
 mod kubernetes;
-use kubernetes::SingularEndpoint;
-
+mod discovery;
 pub mod util;
-use util::to_anyhow;
 
-pub async fn do_run_singular(log: slog::Logger) -> Result<(), Box<dyn std::error::Error>> {
-    info!(log, "Starting singular...");
+use std::path::Path;
+use std::fs;
+use tokio::task;
+#[macro_use] extern crate anyhow;
+use anyhow::Result;
+#[macro_use] extern crate slog;
+use slog::Logger;
+use serde::{Deserialize};
+use serde_json;
+
+use protocol::ServiceCoordinates;
+use discovery::{
+    DiscoveryOptions,
+    run_endpoint_discovery
+};
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Config {
+    pub discovery: DiscoveryOptions,
+}
+impl Config {
+    pub fn load_config(path: &Path) -> Result<Config> {
+        let content = fs::read_to_string(path)?;
+        serde_json::from_str(&content)
+            .map_err(|e| anyhow!("{}", e))
+    }
+}
+
+pub async fn do_run_singular(config: Config, log: Logger) -> Result<(), Box<dyn std::error::Error>> {
+    info!(log, "starting singular...");
 
     // Spawn task to 
     let log1 = log.clone();
     task::spawn(async move {
-        if let Err(e) = run_endpoint_discovery(log1.clone()).await {
-            error!(log1, "Error: {:?}", e);
+        if let Err(e) = run_endpoint_discovery(config.discovery, log1.clone()).await {
+            error!(log1, "error: {:?}", e);
         }
     });
 
@@ -61,84 +65,4 @@ pub async fn do_run_singular(log: slog::Logger) -> Result<(), Box<dyn std::error
     // hyper::rt::run(server);
 
     Ok(())
-}
-
-async fn run_endpoint_discovery(log: slog::Logger) -> Result<()> {
-    let config = config::load_kube_config().await
-        .map_err(to_anyhow)
-        .context("Failed loading kube config")?;
-    let client = APIClient::new(config);
-
-    info!(log, "singular running");
-
-    let mut consecutive_err_count: u32 = 0;
-    loop {
-        debug!(log, "retrieving endpoint...");
-
-        let res = get_singular_endpoint(log.clone(), client.clone()).await;
-        if let Err(e) = res {
-            consecutive_err_count += 1;
-            if consecutive_err_count > 5 {
-                return Err(e).context("Failed retrieving service endpoint");
-            } else {
-                warn!(log, "{}", e);
-            }
-        } else {
-            consecutive_err_count = 0;
-            // TODO notify proxy about new endpoint
-        }
-        
-        delay_for(Duration::from_secs(3)).await;
-    }
-}
-
-
-async fn get_singular_endpoint(log: slog::Logger, client: APIClient) -> anyhow::Result<SingularEndpoint> {
-    let endpoints = kubernetes::get_service_endpoint(client).await?;
-
-    // Query all endpoints if they think they are the one
-    let singular_queries = endpoints.iter()
-        .map(query_singular_endpoint);
-    let singular_results = future::join_all(singular_queries).await;
-
-    // Ignore failed queries
-    let responses: Vec<&(SingularEndpoint, bool)> = singular_results.iter()
-        .filter(|res| res.is_ok())
-        .map(|res| res.as_ref().unwrap())
-        .collect();
-    
-    // Sanity: Any responses at all?
-    if responses.is_empty() {
-        return Err(anyhow!("0/{} singular queries successful.", endpoints.len()));
-    }
-
-    // Filter by positive responses, e.g. which endpoints deemed themselves in charge
-    let positive_response: Vec<&(SingularEndpoint, bool)> = responses.iter()
-        .filter(|r| r.1)
-        .cloned()
-        .collect();
-    match positive_response.len() {
-        0 => Err(anyhow!("None of the singular endpoints felt responsible!")),
-        1 => {
-            let (endpoint, _) = positive_response.first().unwrap();
-            Ok(endpoint.clone())
-        },
-        _ => {
-            let all_endpoints_str = positive_response.iter()
-                .map(|e| format!("{}", e.0))
-                .collect::<Vec<String>>()
-                .join(", ");
-            warn!(log, "More than 1 singular endpoint felt responsible [{}], chosing first.", all_endpoints_str);
-
-            let (endpoint, _) = positive_response.first().unwrap();
-            Ok(endpoint.clone())
-        }
-    }
-}
-
-async fn query_singular_endpoint(endpoint: &SingularEndpoint) -> anyhow::Result<(SingularEndpoint, bool)> {
-    let uri = format!("http://{}", endpoint).parse()?;
-    let client = Client::new();
-    let response = client.get(uri).await?;
-    Ok((endpoint.clone(), response.status() == 200))
 }

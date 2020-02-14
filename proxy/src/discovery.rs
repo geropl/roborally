@@ -1,9 +1,11 @@
 
 use std::time::Duration;
+use std::sync::Arc;
 
 use hyper::Client;
 use futures::future;
 use tokio::time::delay_for;
+use tokio::sync::RwLock;
 use anyhow::{
     Result,
     Context
@@ -26,7 +28,7 @@ pub struct DiscoveryOptions {
     pub query_path: String,
 }
 
-pub async fn run_endpoint_discovery(opts: DiscoveryOptions, log: Logger) -> Result<()> {
+pub async fn run_endpoint_discovery(opts: DiscoveryOptions, log: Logger, forward_uri_lock: Arc<RwLock<String>>) -> Result<()> {
     let config = config::load_kube_config().await
         .map_err(kubernetes::to_anyhow)
         .context("failed loading kube config")?;
@@ -39,17 +41,27 @@ pub async fn run_endpoint_discovery(opts: DiscoveryOptions, log: Logger) -> Resu
         debug!(log, "retrieving endpoint...");
 
         let res = get_singular_endpoint(client.clone(), opts.clone(), log.clone()).await;
-        if let Err(e) = res {
-            consecutive_err_count += 1;
-            if consecutive_err_count > 5 {
-                return Err(e).context("failed retrieving singular endpoint");
+        match res {
+            Err(e) => {
+                consecutive_err_count += 1;
+                if consecutive_err_count > 5 {
+                    return Err(e).context("failed retrieving singular endpoint");
+                }
+
+                warn!(log, "failed retrieving singular endpoint: {}", e);
+            },
+            Ok(endpoint) => {
+                consecutive_err_count = 0;
+
+                // notify proxy about new endpoint (if it changed at all)
+                let new_endpoint_uri = endpoint.to_string();
+                let old_endpoint_uri = { forward_uri_lock.read().await };
+                if new_endpoint_uri == *old_endpoint_uri {
+                    let mut w = forward_uri_lock.write().await;
+                    *w = new_endpoint_uri;
+                }
             }
-
-            warn!(log, "failed retrieving singular endpoint: {}", e);
-        }
-
-        consecutive_err_count = 0;
-        // TODO notify proxy about new endpoint
+        };
         
         delay_for(opts.interval).await;
     }

@@ -14,6 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 # hyper-reverse-proxy = "0.4"
+hyper-reverse-proxy = { git = "https://github.com/geropl/hyper-reverse-proxy", rev = "5d981e322a1cf403a17f3932d6c3af9459df59a4" }
 hyper = "0.13"
 # futures = "0.1"
 

@@ -2,10 +2,13 @@
 mod protocol;
 mod kubernetes;
 mod discovery;
+mod proxy;
 pub mod util;
 
 use std::path::Path;
 use std::fs;
+use std::sync::Arc;
+
 use tokio::task;
 #[macro_use] extern crate anyhow;
 use anyhow::Result;
@@ -13,15 +16,20 @@ use anyhow::Result;
 use slog::Logger;
 use serde::{Deserialize};
 use serde_json;
+use tokio::sync::RwLock;
 
 use protocol::ServiceCoordinates;
 use discovery::{
     DiscoveryOptions,
     run_endpoint_discovery
 };
+use proxy::{
+    run_proxy
+};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
+    pub port: u16,
     pub discovery: DiscoveryOptions,
 }
 impl Config {
@@ -35,34 +43,27 @@ impl Config {
 pub async fn do_run_singular(config: Config, log: Logger) -> Result<(), Box<dyn std::error::Error>> {
     info!(log, "starting singular...");
 
-    // Spawn task to 
-    let log1 = log.clone();
+    let forward_uri_lock = Arc::new(RwLock::new(String::from("")));
+
+    // Spawn task for endpoint discovery
+    let log_c = log.clone();
+    let forward_uri_lock_c = forward_uri_lock.clone();
+    let config_c = config.clone();
     task::spawn(async move {
-        if let Err(e) = run_endpoint_discovery(config.discovery, log1.clone()).await {
-            error!(log1, "error: {:?}", e);
+        let res = run_endpoint_discovery(config_c.discovery, log_c.clone(), forward_uri_lock_c).await;
+        if let Err(e) = res {
+            error!(log_c, "discovery error: {:?}", e);
         }
     });
 
-
-    // // This is our socket address...
-    // let addr = ([127, 0, 0, 1], 8081).into();
-
-    // // A `Service` is needed for every connection.
-    // let make_svc = make_service_fn(|socket: &AddrStream| {
-    //     let remote_addr = socket.remote_addr();
-    //     service_fn(move |req: Request<Body>| { // returns BoxFut
-    //         hyper_reverse_proxy::call(remote_addr.ip(), "http://127.0.0.1:8080", req)
-    //     })
-    // });
-
-    // let server = Server::bind(&addr)
-    //     .serve(make_svc)
-    //     .map_err(|e| eprintln!("server error: {}", e));
-
-    // println!("Running server on {:?}", addr);
-
-    // Run this server for... forever!
-    // hyper::rt::run(server);
+    // Spawn task for running the actual proxy
+    task::spawn(async move {
+        println!("Running server on {:?}", config.port);
+        let res = run_proxy(config.port, forward_uri_lock).await;
+        if let Err(e) = res {
+            error!(log, "proxy error: {:?}", e);
+        }
+    });
 
     Ok(())
 }

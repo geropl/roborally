@@ -29,6 +29,8 @@ tokio = { version = "0.2.11", features = ["full"] }
 # futures-timer = "2.0.2"
 # async-std = "1.4.0"
 
+# Use unreleased v3.0.0
+clap = { git = "https://github.com/clap-rs/clap/", rev = "bbb14f8bd47ef201b315d367922343577ee60718"}
 anyhow = "1.0.26"
 
 slog = "2.5.2"
@@ -38,3 +40,4 @@ slog-async = "2.3.0"
 
 serde = { package = "serde", version = "^1.0", features = ["derive"] }
 serde_json = { package = "serde_json", version = "^1.0" }
+schemars = "0.6.5"

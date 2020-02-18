@@ -16,6 +16,7 @@ use anyhow::Result;
 use slog::Logger;
 use serde::{Deserialize};
 use serde_json;
+use schemars::JsonSchema;
 use tokio::sync::RwLock;
 
 use protocol::ServiceCoordinates;
@@ -27,7 +28,7 @@ use proxy::{
     run_proxy
 };
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, JsonSchema)]
 pub struct Config {
     pub port: u16,
     pub discovery: DiscoveryOptions,
@@ -43,6 +44,7 @@ impl Config {
 pub async fn do_run_singular(config: Config, log: Logger) -> Result<(), Box<dyn std::error::Error>> {
     info!(log, "starting singular...");
 
+    // The RWLock used to communicate the URI to which forward requests to to the proxy
     let forward_uri_lock = Arc::new(RwLock::new(String::from("")));
 
     // Spawn task for endpoint discovery

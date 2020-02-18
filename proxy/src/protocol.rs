@@ -1,12 +1,18 @@
 use std::fmt;
 
 use serde::{Deserialize};
+use schemars::JsonSchema;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, JsonSchema)]
 pub struct ServiceCoordinates {
     pub name: String,
+    #[serde(default = "default_namespace")]
     pub namespace: String,
     pub port: i32,
+}
+
+fn default_namespace() -> String {
+    "default".to_string()
 }
 
 #[derive(Clone, Debug)]

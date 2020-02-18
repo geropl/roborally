@@ -16,10 +16,8 @@ pub async fn run_proxy(local_port: u16, forward_uri_lock: Arc<RwLock<String>>) -
             let svc_fn = service_fn(move |req: Request<Body>| {
                 let lock = forward_uri_lock.clone();
                 async move {
-                    let forward_uri = {
-                        // Don't lock longer than needed
-                        lock.read().await
-                    };
+                    // Don't lock longer than needed (like, for the whole request)
+                    let forward_uri = { lock.read().await };
                     let res = hyper_reverse_proxy::call(remote_addr.ip(), &forward_uri, req).await;
                     Ok::<Response<Body>,Infallible>(res)
                 }

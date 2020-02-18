@@ -16,14 +16,16 @@ use kube::{
     client::APIClient
 };
 use serde::{Deserialize};
+use schemars::JsonSchema;
 
 use super::ServiceCoordinates;
 use super::kubernetes;
 use super::protocol::SingularEndpoint;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, JsonSchema)]
 pub struct DiscoveryOptions {
-    pub interval: Duration,
+    pub interval_secs: u32,
+    pub consecutive_error_threshold: u32,
     pub svc_coords: ServiceCoordinates,
     pub query_path: String,
 }
@@ -44,7 +46,7 @@ pub async fn run_endpoint_discovery(opts: DiscoveryOptions, log: Logger, forward
         match res {
             Err(e) => {
                 consecutive_err_count += 1;
-                if consecutive_err_count > 5 {
+                if consecutive_err_count > opts.consecutive_error_threshold {
                     return Err(e).context("failed retrieving singular endpoint");
                 }
 
@@ -63,7 +65,7 @@ pub async fn run_endpoint_discovery(opts: DiscoveryOptions, log: Logger, forward
             }
         };
         
-        delay_for(opts.interval).await;
+        delay_for(Duration::from_secs(opts.interval_secs.into())).await;
     }
 }
 

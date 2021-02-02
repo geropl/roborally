@@ -1,5 +1,7 @@
 FROM gitpod/workspace-full
 
+ENV TRIGGER_UPDATE=1
+
 USER gitpod
 
 # Install gatsby CLI

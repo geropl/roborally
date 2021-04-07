@@ -1,3 +1,4 @@
+import { Board } from 'ts-client/lib/gamestate_pb';
 import { Game } from './phaser-game-board';
 
 
@@ -6,7 +7,7 @@ export class PhaserBoardRenderer {
     
     constructor(protected canvasRef: React.RefObject<HTMLElement>) {}
 
-    init() {
+    init(board: Board.AsObject) {
         console.log("renderer: init");
 
         const canvas = this.canvasRef.current;
@@ -15,7 +16,7 @@ export class PhaserBoardRenderer {
             return;
         }
 
-        this.game = new Game(canvas);
+        this.game = new Game(canvas, board);
         console.log("game started");
     }
 }

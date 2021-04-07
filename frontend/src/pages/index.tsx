@@ -4,7 +4,7 @@ import * as URL from "url";
 import { GetGameStateRequest, StartGameRequest, StartGameResponse, GetGameStateResponse, SetProgramInputRequest, SetProgramInputResponse, SetStartPositionRequest, SetStartPositionResponse } from "ts-client/lib/protocol_pb";
 import { RoboRallyGameClient } from "ts-client/lib/ProtocolServiceClientPb";
 import { BoardView } from "../components/board/board-view";
-import { GameState, EGamePhase, ERoundPhase, Position } from "ts-client/lib/gamestate_pb";
+import { GameState, EGamePhase, ERoundPhase, Position, Board } from "ts-client/lib/gamestate_pb";
 import { ProgramSheet } from "../components/program-sheet";
 import { ProgramInput, StartPositionInput } from "ts-client/lib/inputs_pb";
 
@@ -26,12 +26,13 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
         let gamePhase = '-';
         let roundPhase = '-';
         let roundId = '-';
+        let board: Board.AsObject | undefined = undefined;
         if (state && state.gameState) {
             const rounds = state.gameState.roundsList;
             const round = rounds.length > 0 && rounds[rounds.length - 1];
             const currentState = round && round.state || state.gameState.startState!;
 
-            const board = state.gameState!.initialState!.board!;
+            board = state.gameState!.initialState!.board!;
             const availableStartPositionIds: number[] = [];
             if (state.gameState!.phase === EGamePhase.PREPARATION) {
                 const posToStr = (pos: Position.AsObject): string => `${pos.x}:${pos.y}`;
@@ -70,7 +71,7 @@ export default class Dashboard extends React.Component<{}, DashboardState> {
             <div>
                 RoboRally!!!
                 <div>
-                    <BoardView />
+                    { board && <BoardView board={board} /> }
                     <input type="button" value="StartGame" onClick={() => this.requestStartGame() } />
                     <input type="button" value="GetGameState" onClick={() => this.requestGameState() } />
                     <label style={labelStyle} id="game-phase">Game Phase: {gamePhase}</label>

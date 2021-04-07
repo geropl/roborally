@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { Board as ApiBoard, EDirection, ETileType } from 'ts-client/lib/gamestate_pb';
 
 type integer = number;
 
@@ -399,7 +400,6 @@ const MysceneConfig: Phaser.Types.Scenes.SettingsConfig = {
 };
 
 export class NewGameScene extends Phaser.Scene {
-    board: any ;
     tiles: any;
     keyW: any;
     keyA: any;
@@ -413,10 +413,8 @@ export class NewGameScene extends Phaser.Scene {
     artwork: TileFactory | undefined;
     followPoint: any;
     renderer: any;
-    constructor() {
-
+    constructor(protected readonly board: Board) {
         super(MysceneConfig);
-        this.board = defineTestBoard();
     }
     public preload() {
         this.load.image("Hole", "/images/Hole.png");
@@ -492,14 +490,18 @@ export class NewGameScene extends Phaser.Scene {
     }
 }
 export class Game {
+    protected readonly scene: NewGameScene;
+    protected readonly game: Phaser.Game;
 
-    constructor(parent: HTMLElement) {
-        const MygameConfig: Phaser.Types.Core.GameConfig = {
+    constructor(parent: HTMLElement, apiBoard: ApiBoard.AsObject) {
+        const board = mapApiBoardToBoard(apiBoard);
+        this.scene = new NewGameScene(board);
+        const config: Phaser.Types.Core.GameConfig = {
             title: 'Sample',
             type: Phaser.AUTO,
             width: 800,
             height: 600,
-            scene: NewGameScene,
+            scene: () => this.scene,
 
             physics: {
                 default: 'arcade',
@@ -510,97 +512,129 @@ export class Game {
             parent,
             backgroundColor: '#000000'
         };
-        this.game = new Phaser.Game(MygameConfig);
+        this.game = new Phaser.Game(config);
     }
-
-    game: Phaser.Game;
-
 }
 
-function defineTestBoard():Board
-{
-    let board: Board = new Board(12, 12);
-    board.getCell(0, 0).setHole();
-    board.getCell(3, 0).setHole();
-    board.getCell(0, 1).setHole();
-    board.getCell(5, 0).setHole();
-    board.getCell(2, 1).setHole();
-    board.getCell(0, 10).setHole();
-    board.getCell(11, 2).setHole();
-    board.getCell(2, 11).setHole();
-
-    board.getVWall(2, 4).setWall();
-    board.getVWall(3, 4).setWall();
-    board.getVWall(3, 5).setWall();
-
-    board.getHWall(3,5).setWall();
-    board.getVWall(4, 4).setWall();
-    board.getVWall(4,5).setWall();
-    board.getHWall(4, 4).setWall();
-    board.getHWall(5, 4).setWall();
-
-    board.getVWall(5, 4).setWall();
-    board.getVWall(5, 5).setWall();
-    board.getHWall(4, 6).setWall();
-    board.getHWall(5, 6).setWall();
-
-    board.getVWall(7,7).setWall();
-    board.getHWall(7,7).setWall();
-    board.getVWall(7,6).setWall();
-    board.getHWall(6,7).setWall();
-
-
-    board.getHWall(1, 7).setWall();
-    board.getHWall(2, 7).setWall();
-    board.getVWall(3, 7).setWall();
-    board.getVWall(3, 8).setWall();
-   
-
-    board.getHWall(2, 9).setWall();
-    board.getHWall(1, 9).setWall();
-    board.getVWall(1, 8).setWall();
-    board.getVWall(1, 7).setWall();
-    board.getHWall(0, 2).setWall();
-    board.getHWall(7, 0).setWall();
-    board.getHWall(0, 0).setWall();
-
-
-    board.getCell(8, 8).setOverlay(Conveyor.fromDirections("EW"));
-    board.getCell(9, 8).setOverlay(Conveyor.fromDirections("WE"));
-
-    board.getCell(10, 8).setOverlay(Conveyor.fromDirections("NS"));
-    board.getCell(10, 9).setOverlay(Conveyor.fromDirections("SN"));
-
-    board.getCell(6, 8).setOverlay(Conveyor.fromDirections("ES"));
-    board.getCell(7, 8).setOverlay(Conveyor.fromDirections("SW"));
-
-    board.getCell(7, 9).setOverlay(Conveyor.fromDirections("WN"));
-    board.getCell(6, 9).setOverlay(Conveyor.fromDirections("NE"));
-
-
-    board.getCell(4, 8).setOverlay(Conveyor.fromDirections("SE"));
-    board.getCell(5, 8).setOverlay(Conveyor.fromDirections("WS"));
-    board.getCell(5, 9).setOverlay(Conveyor.fromDirections("NW"));
-    board.getCell(4, 9).setOverlay(Conveyor.fromDirections("EN"));
-
-    board.getCell(2, 2).setOverlay(Conveyor.fromDirections("ES"));
-    board.getCell(3, 2).setOverlay(Conveyor.fromDirections("EWN"));
-    board.getCell(4, 2).setOverlay(Conveyor.fromDirections("SW"));
-    board.getCell(4, 3).setOverlay(Conveyor.fromDirections("SNE"));
-    board.getCell(4, 4).setOverlay(Conveyor.fromDirections("WN"));
-    board.getCell(3, 4).setOverlay(Conveyor.fromDirections("WES"));
-    board.getCell(2, 4).setOverlay(Conveyor.fromDirections("NE"));
-    board.getCell(2, 3).setOverlay(Conveyor.fromDirections("NSW"));
-
-    board.getCell(7, 2).setOverlay(Conveyor.fromDirections("SE"));
-    board.getCell(8, 2).setOverlay(Conveyor.fromDirections("WEN"));
-    board.getCell(9, 2).setOverlay(Conveyor.fromDirections("WS"));
-    board.getCell(9, 3).setOverlay(Conveyor.fromDirections("NES"));
-    board.getCell(9, 4).setOverlay(Conveyor.fromDirections("NW"));
-    board.getCell(8, 4).setOverlay(Conveyor.fromDirections("EWS"));
-    board.getCell(7, 4).setOverlay(Conveyor.fromDirections("EN"));
-    board.getCell(7, 3).setOverlay(Conveyor.fromDirections("SNW"));
-    board.getCell(1, 2).setOverlay(new Static(static_type.rotater, Orientation.Clockwise));
-    board.getCell(1, 3).setOverlay(new Static(static_type.rotater, Orientation.Counterclockwise));
+function mapApiBoardToBoard(apiBoard: ApiBoard.AsObject): Board {
+    const board = new Board(apiBoard.sizeX, apiBoard.sizeY);
+    for (const tile of apiBoard.tilesList) {
+        const { x, y } = tile.position!;
+        const c = board.getCell(x, y);
+        switch (tile.type) {
+            case ETileType.NO_TILE:
+                c.setHole();
+                break;
+            case ETileType.REGULAR:
+                // assumed default
+                break;
+        }
+        // TODO(geropl): tile.startPositionId
+        
+        for (const wall of tile.wallsList) {
+            // TODO(geropl): Is this correct?
+            const wx = wall === EDirection.WEST ? x + 1 : x;
+            const wy = wall === EDirection.SOUTH ? y + 1 : y;
+            switch (wall) {
+                case EDirection.WEST:
+                case EDirection.EAST:
+                    board.getVWall(wx, wy).setWall();
+                    break;
+                case EDirection.NORTH:
+                case EDirection.SOUTH:
+                    board.getHWall(wx, wy).setWall();
+                    break;
+            }
+        }
+        
+    }
     return board;
 }
+
+// function defineTestBoard():Board
+// {
+//     let board: Board = new Board(12, 12);
+//     board.getCell(0, 0).setHole();
+//     board.getCell(3, 0).setHole();
+//     board.getCell(0, 1).setHole();
+//     board.getCell(5, 0).setHole();
+//     board.getCell(2, 1).setHole();
+//     board.getCell(0, 10).setHole();
+//     board.getCell(11, 2).setHole();
+//     board.getCell(2, 11).setHole();
+
+//     board.getVWall(2, 4).setWall();
+//     board.getVWall(3, 4).setWall();
+//     board.getVWall(3, 5).setWall();
+
+//     board.getHWall(3,5).setWall();
+//     board.getVWall(4, 4).setWall();
+//     board.getVWall(4,5).setWall();
+//     board.getHWall(4, 4).setWall();
+//     board.getHWall(5, 4).setWall();
+
+//     board.getVWall(5, 4).setWall();
+//     board.getVWall(5, 5).setWall();
+//     board.getHWall(4, 6).setWall();
+//     board.getHWall(5, 6).setWall();
+
+//     board.getVWall(7,7).setWall();
+//     board.getHWall(7,7).setWall();
+//     board.getVWall(7,6).setWall();
+//     board.getHWall(6,7).setWall();
+
+
+//     board.getHWall(1, 7).setWall();
+//     board.getHWall(2, 7).setWall();
+//     board.getVWall(3, 7).setWall();
+//     board.getVWall(3, 8).setWall();
+   
+
+//     board.getHWall(2, 9).setWall();
+//     board.getHWall(1, 9).setWall();
+//     board.getVWall(1, 8).setWall();
+//     board.getVWall(1, 7).setWall();
+//     board.getHWall(0, 2).setWall();
+//     board.getHWall(7, 0).setWall();
+//     board.getHWall(0, 0).setWall();
+
+
+//     board.getCell(8, 8).setOverlay(Conveyor.fromDirections("EW"));
+//     board.getCell(9, 8).setOverlay(Conveyor.fromDirections("WE"));
+
+//     board.getCell(10, 8).setOverlay(Conveyor.fromDirections("NS"));
+//     board.getCell(10, 9).setOverlay(Conveyor.fromDirections("SN"));
+
+//     board.getCell(6, 8).setOverlay(Conveyor.fromDirections("ES"));
+//     board.getCell(7, 8).setOverlay(Conveyor.fromDirections("SW"));
+
+//     board.getCell(7, 9).setOverlay(Conveyor.fromDirections("WN"));
+//     board.getCell(6, 9).setOverlay(Conveyor.fromDirections("NE"));
+
+
+//     board.getCell(4, 8).setOverlay(Conveyor.fromDirections("SE"));
+//     board.getCell(5, 8).setOverlay(Conveyor.fromDirections("WS"));
+//     board.getCell(5, 9).setOverlay(Conveyor.fromDirections("NW"));
+//     board.getCell(4, 9).setOverlay(Conveyor.fromDirections("EN"));
+
+//     board.getCell(2, 2).setOverlay(Conveyor.fromDirections("ES"));
+//     board.getCell(3, 2).setOverlay(Conveyor.fromDirections("EWN"));
+//     board.getCell(4, 2).setOverlay(Conveyor.fromDirections("SW"));
+//     board.getCell(4, 3).setOverlay(Conveyor.fromDirections("SNE"));
+//     board.getCell(4, 4).setOverlay(Conveyor.fromDirections("WN"));
+//     board.getCell(3, 4).setOverlay(Conveyor.fromDirections("WES"));
+//     board.getCell(2, 4).setOverlay(Conveyor.fromDirections("NE"));
+//     board.getCell(2, 3).setOverlay(Conveyor.fromDirections("NSW"));
+
+//     board.getCell(7, 2).setOverlay(Conveyor.fromDirections("SE"));
+//     board.getCell(8, 2).setOverlay(Conveyor.fromDirections("WEN"));
+//     board.getCell(9, 2).setOverlay(Conveyor.fromDirections("WS"));
+//     board.getCell(9, 3).setOverlay(Conveyor.fromDirections("NES"));
+//     board.getCell(9, 4).setOverlay(Conveyor.fromDirections("NW"));
+//     board.getCell(8, 4).setOverlay(Conveyor.fromDirections("EWS"));
+//     board.getCell(7, 4).setOverlay(Conveyor.fromDirections("EN"));
+//     board.getCell(7, 3).setOverlay(Conveyor.fromDirections("SNW"));
+//     board.getCell(1, 2).setOverlay(new Static(static_type.rotater, Orientation.Clockwise));
+//     board.getCell(1, 3).setOverlay(new Static(static_type.rotater, Orientation.Counterclockwise));
+//     return board;
+// }

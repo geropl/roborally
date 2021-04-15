@@ -7,9 +7,9 @@ USER gitpod
 # Install gatsby CLI
 RUN bash -lc "npm install -g gatsby-cli"
 
-# Install rust beta
-RUN bash -lc "rustup install beta && \
-    rustup default beta && \
+# Install rust 1.51
+RUN bash -lc "rustup install 1.51 && \
+    rustup default 1.51 && \
     rustup component add \
         rustfmt \
         rls-preview \

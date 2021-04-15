@@ -6,7 +6,7 @@ use tonic::transport::Server;
 
 use std::env;
 
-use protocol::server::RoboRallyGameServer;
+use protocol::robo_rally_game_server::RoboRallyGameServer;
 
 use service::RoboRallyGameService;
 
@@ -24,7 +24,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let service = RoboRallyGameService::default();
     Server::builder()
-        .serve(socket_addr, RoboRallyGameServer::new(service))
+        .add_service(RoboRallyGameServer::new(service))
+        .serve(socket_addr)
         .await?;
 
     Ok(())

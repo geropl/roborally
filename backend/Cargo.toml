@@ -5,19 +5,19 @@ authors = ["Gero Posmyk-Leinemann <gero.posmyk-leinemann@typefox.io>"]
 edition = "2018"
 
 [dependencies]
-tonic = { version = "0.1.0-alpha.4", features = ["rustls"] }
-bytes = "0.4"
-prost = "0.5"
-rand = "0.7.2"
+tonic = { version = "0.4.2" }
+bytes = "1.0.1"
+prost = "0.7.0"
+rand = "0.8.3"
 
-derive_builder = "0.9.0"
-failure = "0.1.6"
+derive_builder = "0.10.0"
+failure = "0.1.8"
 
-tokio = "=0.2.0-alpha.6"
-futures-preview = { version = "=0.3.0-alpha.19", default-features = false, features = ["alloc"]}
-async-stream = "0.1.2"
-http = "0.1"
-tower = "=0.3.0-alpha.2"
+tokio = { version = "1.5.0", features = ["rt-multi-thread"] }
+futures-preview = { version = "0.3.0-alpha.19", default-features = false, features = ["alloc"] }
+async-stream = "0.3.0"
+http = "0.2.4"
+tower = "0.4.6"
 
 [build-dependencies]
-tonic-build = "0.1.0-alpha.4"
+tonic-build = "0.4.2"

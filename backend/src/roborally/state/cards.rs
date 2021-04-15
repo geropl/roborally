@@ -53,7 +53,7 @@ impl ProgramCardDeckGenerator {
         for _ in 0..config.card_count() {
             loop {
                 use rand::Rng;
-                let prio = self.rng.gen_range(1, 1001);
+                let prio = self.rng.gen_range(1..1001);
                 if priorities.insert(prio) {
                     break;
                 }

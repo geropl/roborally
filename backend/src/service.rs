@@ -3,7 +3,7 @@ use failure::Error;
 
 use std::sync::{ Arc, Mutex };
 
-use crate::protocol::server::RoboRallyGame;
+use crate::protocol::robo_rally_game_server::RoboRallyGame;
 use crate::protocol::{ StartGameRequest, StartGameResponse, GetGameStateRequest, GetGameStateResponse, GameState, SetProgramInputRequest, SetProgramInputResponse, SetStartPositionRequest, SetStartPositionResponse };
 
 use crate::roborally::state as s;

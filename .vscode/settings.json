@@ -1,0 +1,17 @@
+{
+    "typescript.tsdk": "node_modules/typescript/lib",
+     "[json]": {
+       "editor.insertSpaces": true,
+       "editor.tabSize": 2
+     },
+     "[yaml]": {
+       "editor.insertSpaces": true,
+       "editor.tabSize": 2
+     },
+     "[rust]": {
+       "editor.insertSpaces": true,
+       "editor.tabSize": 4
+     },
+    "rust-analyzer.assist.importPrefix": "by_crate",
+    "rust-analyzer.assist.importMergeBehavior": "last"
+}

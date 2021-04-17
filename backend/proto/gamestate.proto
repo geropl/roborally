@@ -56,9 +56,9 @@ message Board {
 
 message Tile {
     Position position = 1;
-    ETileType type = 2;
-    repeated EDirection walls = 3;
-    StartPositionID start_position_id = 4;
+    TileType type = 2;
+    repeated EDirection walls = 4;
+    StartPositionID start_position_id = 5;
 }
 
 message StartPositionID {
@@ -68,6 +68,39 @@ message StartPositionID {
 enum ETileType {
     REGULAR = 0;
     NO_TILE = 1;
+    CONVEYOR2 = 2;
+    CONVEYOR3 = 3;
+    ROTATOR = 4;
+}
+
+message TileType {
+    ETileType type = 1;
+    oneof fields {
+        Conveyor2 conveyor2 = 3;
+        Conveyor3 conveyor3 = 4;
+        Rotator rotator = 5;
+    }
+}
+
+message Conveyor2 {
+    EDirection out = 1;
+    EDirection input = 2;
+    bool speed = 3;
+}
+
+message Conveyor3 {
+    EDirection out = 1;
+    repeated EDirection inputs = 2;
+    bool speed = 3;
+}
+
+message Rotator {
+    ERotationDir dir = 1;
+}
+
+enum ERotationDir {
+    LEFT = 0;
+    RIGHT = 1;
 }
 
 message Position {

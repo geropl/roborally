@@ -6,7 +6,7 @@ use std::fs;
 use std::str::Chars;
 use std::collections::HashSet;
 
-use super::{ Board, ETileType, Tile, Position, EDirection, StartPositionID };
+use super::{ Board, ETileType, ERotationDir, Tile, Position, EDirection, StartPositionID };
 
 #[derive(Debug, Fail)]
 pub enum ParserError {
@@ -29,8 +29,9 @@ pub enum ParserError {
     #[fail(display = "Unexpected end of row")]
     TileEndOfRow {
     },
-    #[fail(display = "Unexpected row length: before ({}), after ({})", before, after)]
+    #[fail(display = "Unexpected row length {}: before ({}), after ({})", index, before, after)]
     UnexpectedRowLength {
+        index: i32,
         before: usize,
         after: usize,
     },
@@ -79,13 +80,13 @@ fn parse_board(content: String) -> Result<Board, ParserError> {
             if x == 0 {
                 x = row_length;
             } else if x != row_length {
-                return Err(ParserError::UnexpectedRowLength{ before: x, after: row_length })
+                return Err(ParserError::UnexpectedRowLength{ index: y_raw, before: x, after: row_length })
             }
             hwalls.extend(row_walls);
         } else {
             let row_tiles = parse_tile_row(row_str, y)?;
             if x != row_tiles.len() {
-                return Err(ParserError::UnexpectedRowLength{ before: x, after: row_tiles.len() })
+                return Err(ParserError::UnexpectedRowLength{ index: y_raw, before: x, after: row_tiles.len() })
             }
             tiles.extend(row_tiles);
             y += 1;
@@ -167,9 +168,9 @@ fn parse_tile_row(row_str: &str, y: i32) -> Result<Vec<Tile>, ParserError> {
         let wall = match_vertical_wall(&mut chars)?;
         let (tile_type, start_position_id) = match match_tile_type(&mut chars) {
             Ok(t) => t,
-            Err(_) => {
+            Err(ParserError::TileEndOfRow{}) => {
                 if tiles.is_empty() {
-                    return Err(ParserError::EndOfRow{ position: Position{ x, y }})
+                    return Err(ParserError::EndOfRow{ position: Position{ x, y }});
                 }
 
                 if wall {
@@ -178,6 +179,7 @@ fn parse_tile_row(row_str: &str, y: i32) -> Result<Vec<Tile>, ParserError> {
                 }
                 break;
             },
+            Err(err) => return Err(err),
         };
         
         tiles.push(Tile {
@@ -202,14 +204,68 @@ fn match_vertical_wall(chars: &mut Chars) -> Result<bool, ParserError> {
 }
 
 fn match_tile_type(chars: &mut Chars) -> Result<(ETileType, Option<u32>), ParserError> {
+    use ETileType::*;
+    use EDirection::*;
+    use ERotationDir::*;
+
     match chars.next() {
-        Some('o') => Ok((ETileType::Regular, None)),
-        Some(' ') => Ok((ETileType::NoTile, None)),
-        Some(c) => match c.to_digit(10) {
-            Some(start_position_id) => Ok((ETileType::Regular, Some(start_position_id))),
-            None => Err(ParserError::UnknownTileType{ msg: c.to_string() }),
-        },
         None => Err(ParserError::TileEndOfRow{}),
+        Some(c) => match c {
+            '\n' => Err(ParserError::TileEndOfRow{}),
+
+            'o' => Ok((Regular, None)),
+            ' ' => Ok((NoTile, None)),
+            '↻' => Ok((Rotator { dir: Right }, None)),
+            '↺' => Ok((Rotator { dir: Left }, None)),
+
+            '↓' => Ok((Conveyor2 { input: NORTH, out: SOUTH, speed: false }, None)),
+            '←' => Ok((Conveyor2 { input: EAST, out: WEST, speed: false }, None)),
+            '→' => Ok((Conveyor2 { input: WEST, out: EAST, speed: false }, None)),
+            '↑' => Ok((Conveyor2 { input: SOUTH, out: NORTH, speed: false }, None)),
+            '↡' => Ok((Conveyor2 { input: NORTH, out: SOUTH, speed: true }, None)),
+            '↞' => Ok((Conveyor2 { input: EAST, out: WEST, speed: true }, None)),
+            '↠' => Ok((Conveyor2 { input: WEST, out: EAST, speed: true }, None)),
+            '↟' => Ok((Conveyor2 { input: SOUTH, out: NORTH, speed: true }, None)),
+
+            '┑' => Ok((Conveyor2 { input: SOUTH, out: WEST, speed: false }, None)),
+            '┎' => Ok((Conveyor2 { input: EAST, out: SOUTH, speed: false }, None)),
+            '┕' => Ok((Conveyor2 { input: NORTH, out: EAST, speed: false }, None)),
+            '┚' => Ok((Conveyor2 { input: WEST, out: NORTH, speed: false }, None)),
+            '┍' => Ok((Conveyor2 { input: SOUTH, out: EAST, speed: false }, None)),
+            '┒' => Ok((Conveyor2 { input: WEST, out: SOUTH, speed: false }, None)),
+            '┙' => Ok((Conveyor2 { input: NORTH, out: WEST, speed: false }, None)),
+            '┖' => Ok((Conveyor2 { input: EAST, out: NORTH, speed: false }, None)),
+
+            '╕' => Ok((Conveyor2 { input: SOUTH, out: WEST, speed: true }, None)),
+            '╓' => Ok((Conveyor2 { input: EAST, out: SOUTH, speed: true }, None)),
+            '╘' => Ok((Conveyor2 { input: NORTH, out: EAST, speed: true }, None)),
+            '╜' => Ok((Conveyor2 { input: WEST, out: NORTH, speed: true }, None)),
+            '╒' => Ok((Conveyor2 { input: SOUTH, out: EAST, speed: true }, None)),
+            '╖' => Ok((Conveyor2 { input: WEST, out: SOUTH, speed: true }, None)),
+            '╛' => Ok((Conveyor2 { input: NORTH, out: WEST, speed: true }, None)),
+            '╙' => Ok((Conveyor2 { input: EAST, out: NORTH, speed: true }, None)),
+
+            '┝' => Ok((Conveyor3 { inputs: [NORTH, SOUTH], out: EAST, speed: false }, None)),
+            '┞' => Ok((Conveyor3 { inputs: [EAST, SOUTH], out: NORTH, speed: false }, None)),
+            '┟' => Ok((Conveyor3 { inputs: [NORTH, EAST], out: SOUTH, speed: false }, None)),
+
+            '┥' => Ok((Conveyor3 { inputs: [NORTH, SOUTH], out: WEST, speed: false }, None)),
+            '┦' => Ok((Conveyor3 { inputs: [WEST, SOUTH], out: NORTH, speed: false }, None)),
+            '┧' => Ok((Conveyor3 { inputs: [NORTH, WEST], out: SOUTH, speed: false }, None)),
+
+            '┭' => Ok((Conveyor3 { inputs: [EAST, SOUTH], out: WEST, speed: false }, None)),
+            '┮' => Ok((Conveyor3 { inputs: [WEST, SOUTH], out: EAST, speed: false }, None)),
+            '┰' => Ok((Conveyor3 { inputs: [WEST, EAST], out: SOUTH, speed: false }, None)),
+
+            '┵' => Ok((Conveyor3 { inputs: [NORTH, EAST], out: WEST, speed: false }, None)),
+            '┶' => Ok((Conveyor3 { inputs: [NORTH, WEST], out: EAST, speed: false }, None)),
+            '┸' => Ok((Conveyor3 { inputs: [WEST, EAST], out: NORTH, speed: false }, None)),
+            
+            c => match c.to_digit(10) {
+                Some(start_position_id) => Ok((ETileType::Regular, Some(start_position_id))),
+                None => Err(ParserError::UnknownTileType{ msg: c.to_string() }),
+            }
+        }
     }
 }
 

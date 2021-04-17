@@ -151,6 +151,25 @@ pub struct Tile {
 pub enum ETileType {
     Regular,
     NoTile,
+    Conveyor2 {
+        out: EDirection,
+        input: EDirection,
+        speed: bool,
+    },
+    Conveyor3 {
+        out: EDirection,
+        inputs: [EDirection; 2],
+        speed: bool,
+    },
+    Rotator {
+        dir: ERotationDir,
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ERotationDir {
+    Left,
+    Right,
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq)]

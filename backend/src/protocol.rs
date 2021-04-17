@@ -208,13 +208,13 @@ impl From<&state::Board> for Board {
 
 impl From<&state::Tile> for Tile {
     fn from(tile: &state::Tile) -> Tile {
-        let ttype: ETileType = tile.ttype.into();
         let walls = tile.walls.iter()
             .map(|dir| EDirection::from(*dir).into())
             .collect();
+        let typ: TileType = tile.ttype.into();
         Tile {
             position: Some((&tile.position).into()),
-            r#type: ttype.into(),
+            r#type: Some(typ),
             walls,
             start_position_id: match tile.start_position_id {
                 None => None,
@@ -237,9 +237,48 @@ impl From<state::EDirection> for EDirection {
 
 impl From<state::ETileType> for ETileType {
     fn from(ttype: state::ETileType) -> ETileType {
+        use ETileType::*;
+
         match ttype {
-            state::ETileType::Regular => ETileType::Regular,
-            state::ETileType::NoTile => ETileType::NoTile,
+            state::ETileType::Regular => Regular,
+            state::ETileType::NoTile => NoTile,
+            state::ETileType::Conveyor2{ .. } => Conveyor2,
+            state::ETileType::Conveyor3{ .. } => Conveyor3,
+            state::ETileType::Rotator{ .. } => Rotator,
+        }
+    }
+}
+
+impl From<state::ETileType> for TileType {
+    fn from(ttype: state::ETileType) -> TileType {
+        let fields: Option<tile_type::Fields> = match ttype {
+            state::ETileType::Regular => None,
+            state::ETileType::NoTile => None,
+            state::ETileType::Conveyor2{ input, out, speed } => Some(tile_type::Fields::Conveyor2(Conveyor2 {
+                input: input as i32,
+                out: out as i32,
+                speed,
+            })),
+            state::ETileType::Conveyor3{ inputs, out, speed } => Some(tile_type::Fields::Conveyor3(Conveyor3 {
+                inputs: inputs.iter().map(|i| *i as i32).collect(),
+                out: out as i32,
+                speed,
+            })),
+            state::ETileType::Rotator{ dir } => Some(tile_type::Fields::Rotator(Rotator { dir: dir as i32 })),
+        };
+        let typ: ETileType = ttype.into();
+        TileType{
+            r#type: typ.into(),
+            fields
+        }
+    }
+}
+
+impl From<state::ERotationDir> for ERotationDir {
+    fn from(dir: state::ERotationDir) -> ERotationDir {
+        match dir {
+            state::ERotationDir::Left => ERotationDir::Left,
+            state::ERotationDir::Right => ERotationDir::Right,
         }
     }
 }

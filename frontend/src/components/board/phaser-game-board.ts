@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { Board as ApiBoard, EDirection, ETileType } from 'ts-client/lib/gamestate_pb';
+import { Board as ApiBoard, EDirection, ERotationDir, ETileType } from 'ts-client/lib/gamestate_pb';
 
 type integer = number;
 
@@ -521,12 +521,32 @@ function mapApiBoardToBoard(apiBoard: ApiBoard.AsObject): Board {
     for (const tile of apiBoard.tilesList) {
         const { x, y } = tile.position!;
         const c = board.getCell(x, y);
-        switch (tile.type) {
+        const type = tile.type!;
+        switch (type.type) {
             case ETileType.NO_TILE:
                 c.setHole();
                 break;
             case ETileType.REGULAR:
                 // assumed default
+                break;
+            case ETileType.ROTATOR:
+                const dir = type.rotator!.dir === ERotationDir.LEFT ? Orientation.Counterclockwise : Orientation.Clockwise;
+                c.setOverlay(new Static(static_type.rotater, dir));
+                break;
+            case ETileType.CONVEYOR2:
+                const conveyor2 = type.conveyor2!;
+                const conveyorStr = dirToLetter(conveyor2.out) + dirToLetter(conveyor2.input);
+                console.log(`(${x},${y}):` + conveyorStr);
+                // TODO(geropl): Speed?
+                c.setOverlay(Conveyor.fromDirections(conveyorStr));
+                break;
+            case ETileType.CONVEYOR3:
+                const conveyor3 = type.conveyor3!;
+                const ins = conveyor3.inputsList.map(i => dirToLetter(i)).join("");
+                const conveyorStr3 = dirToLetter(conveyor3.out) + ins;
+                console.log(`(${x},${y}):` + conveyorStr3);
+                // TODO(geropl): Speed?
+                c.setOverlay(Conveyor.fromDirections(conveyorStr3));
                 break;
         }
         // TODO(geropl): tile.startPositionId
@@ -549,6 +569,10 @@ function mapApiBoardToBoard(apiBoard: ApiBoard.AsObject): Board {
         
     }
     return board;
+}
+
+function dirToLetter(dir: number): string {
+    return Object.keys(EDirection)[dir].charAt(0).toUpperCase();
 }
 
 // function defineTestBoard():Board

@@ -95,10 +95,10 @@ message Conveyor3 {
 }
 
 message Rotator {
-    ERotationDir dir = 1;
+    ERotationDirection dir = 1;
 }
 
-enum ERotationDir {
+enum ERotationDirection {
     LEFT = 0;
     RIGHT = 1;
 }

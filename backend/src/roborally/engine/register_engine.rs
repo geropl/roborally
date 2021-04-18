@@ -10,7 +10,9 @@ use crate::roborally::state::{
     PlayerID,
     RobotID,
     EDirection,
-    EConnection
+    EConnection,
+    ETileType,
+    ERotationDirection
 };
 
 #[derive(Debug, Fail)]
@@ -60,13 +62,44 @@ impl RegisterEngine {
 
         // 2. Board elements move:
         // a. express conveyor belt move 1
+        state = self.perform_conveyor_move(state, true)?;
+
         // b. Express conveyor belt and normal conveyor belts move 1 space
+        state = self.perform_conveyor_move(state, false)?;
+
         // c. Pusher: push if active (depends on phase)
+
         // d. Gears rotate
+        state = self.perform_rotations(state)?;
 
         // 3. Board and robot lasers fire
         // 4. Robots on flags or repair site: update archive markers
 
+        Ok(state)
+    }
+
+    fn perform_conveyor_move(&self, state: Box<State>, express_only: bool) -> Result<Box<State>, RegisterEngineError> {
+        //  1. gather potential move targets don't move through obstacles (walls or other robots)
+        
+        //  2. weed out duplicates ("If it's not clear what you should do, don't move either robot.")
+        //  3. Move all at once.
+        Ok(state)
+    }
+
+    fn perform_rotations(&self, state: Box<State>) -> Result<Box<State>, RegisterEngineError> {
+        let mut state = state;
+
+        for player_id in state.active_player_ids() {
+            let robot = state.get_robot_by_player_id_or_fail(player_id)?;
+            let tile_type = state.board.get_tile_type_at(&robot.position)?;
+            if let ETileType::Rotator { dir } = tile_type {
+                let new_direction = match dir {
+                    ERotationDirection::Left => robot.direction.turn_left(),
+                    ERotationDirection::Right => robot.direction.turn_right(),
+                };
+                state = state.update_robot(robot.set_direction(new_direction))?;
+            };
+        }
         Ok(state)
     }
 
@@ -237,7 +270,7 @@ mod test {
     use crate::roborally::state::*;
     use crate::roborally::engine::register_engine::*;
 
-    fn create_state() -> Result<(Board, Vec<Player>), Error> {
+    fn create_state(board_name: Option<&'static str>) -> Result<(Board, Vec<Player>), Error> {
         // State
         let robot1 = RobotBuilder::default()
             .id(0)
@@ -253,13 +286,13 @@ mod test {
             .build().unwrap();
         let player2 = Player::new_with_move(1, robot2, MoveCard::new_from_moves(1, 2, &[ESimpleMove::TurnLeft, ESimpleMove::Forward]));
 
-        let board = Board::load_board_by_name("empty-5x5")?;
+        let board = Board::load_board_by_name(board_name.unwrap_or("empty-5x5"))?;
         Ok((board, vec![player1, player2]))
     }
 
     #[test]
     fn test_simple_move() -> Result<(), Error> {
-        let (board, players) = create_state()?;
+        let (board, players) = create_state(None)?;
         let state = State::new_with_random_deck(board, players);
         
         let engine = RegisterEngine::default();
@@ -277,7 +310,7 @@ mod test {
 
     #[test]
     fn test_dead_robot_does_not_move() -> Result<(), Error> {
-        let (board, _) = create_state()?;
+        let (board, _) = create_state(None)?;
 
         // Players + Robots
         let player_id1: u32 = 0;
@@ -311,6 +344,46 @@ mod test {
         assert_eq!(actual_robot1.position, Position { x: 0, y: -1 }, "robot1 position");
         assert_eq!(actual_robot2.direction, EDirection::SOUTH, "robot2 direction");
         assert_eq!(actual_robot2.position, Position { x: 1, y: 1 }, "robot2 position");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_rotators() -> Result<(), Error> {
+        let (board, _) = create_state(Some("test-rotator"))?;
+
+        // Players + Robots
+        let player_id1: u32 = 0;
+        let robot1_pos = Position::new(2, 0);
+        let robot1 = RobotBuilder::default()
+            .id(0)
+            .position(robot1_pos.clone())
+            .direction(EDirection::SOUTH)
+            .build().unwrap();
+        let player1 = Player::new_with_move(player_id1, robot1, MoveCard::new_from_moves(0, 1, &[ESimpleMove::Forward]));
+
+        let player_id2: u32 = 1;
+        let robot2_pos = Position::new(0, 0);
+        let robot2 = RobotBuilder::default()
+            .id(1)
+            .position(robot2_pos)
+            .direction(EDirection::SOUTH)
+            .build().unwrap();
+        let player2 = Player::new_with_move(player_id2, robot2, MoveCard::new_from_moves(1, 2, &[ESimpleMove::Forward]));
+        let players = vec![player1, player2];
+
+        // State
+        let state = State::new_with_random_deck(board, players);
+        
+        let engine = RegisterEngine::default();
+        let actual_state = engine.execute_registers(state)?;
+
+        let actual_robot1 = actual_state.get_robot_by_player_id_or_fail(0)?;
+        let actual_robot2 = actual_state.get_robot_by_player_id_or_fail(1)?;
+        assert_eq!(actual_robot1.position, Position { x: 2, y: 1 }, "robot1 position");
+        assert_eq!(actual_robot1.direction, EDirection::WEST, "robot1 direction");
+        assert_eq!(actual_robot2.direction, EDirection::SOUTH, "robot2 direction");
+        assert_eq!(actual_robot2.position, Position { x: 0, y: 1 }, "robot2 position");
 
         Ok(())
     }

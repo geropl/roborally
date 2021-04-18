@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { Board as ApiBoard, EDirection, ERotationDir, ETileType } from 'ts-client/lib/gamestate_pb';
+import { Board as ApiBoard, EDirection, ERotationDirection, ETileType } from 'ts-client/lib/gamestate_pb';
 
 type integer = number;
 
@@ -530,7 +530,7 @@ function mapApiBoardToBoard(apiBoard: ApiBoard.AsObject): Board {
                 // assumed default
                 break;
             case ETileType.ROTATOR:
-                const dir = type.rotator!.dir === ERotationDir.LEFT ? Orientation.Counterclockwise : Orientation.Clockwise;
+                const dir = type.rotator!.dir === ERotationDirection.LEFT ? Orientation.Counterclockwise : Orientation.Clockwise;
                 c.setOverlay(new Static(static_type.rotater, dir));
                 break;
             case ETileType.CONVEYOR2:

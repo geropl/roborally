@@ -129,6 +129,7 @@ impl Player {
         //     .count()
     }
 
+    /// All players which are still in the game (e.g., who either still have or will have a robot again)
     pub fn is_active(&self) -> bool {
         self.robot.life_tokens > 0 && !self.robot.is_destroyed()
     }

@@ -6,7 +6,7 @@ use std::fs;
 use std::str::Chars;
 use std::collections::HashSet;
 
-use super::{ Board, ETileType, ERotationDir, Tile, Position, EDirection, StartPositionID };
+use super::{ Board, ETileType, ERotationDirection, Tile, Position, EDirection, StartPositionID };
 
 #[derive(Debug, Fail)]
 pub enum ParserError {
@@ -206,7 +206,7 @@ fn match_vertical_wall(chars: &mut Chars) -> Result<bool, ParserError> {
 fn match_tile_type(chars: &mut Chars) -> Result<(ETileType, Option<u32>), ParserError> {
     use ETileType::*;
     use EDirection::*;
-    use ERotationDir::*;
+    use ERotationDirection::*;
 
     match chars.next() {
         None => Err(ParserError::TileEndOfRow{}),

@@ -274,11 +274,11 @@ impl From<state::ETileType> for TileType {
     }
 }
 
-impl From<state::ERotationDir> for ERotationDir {
-    fn from(dir: state::ERotationDir) -> ERotationDir {
+impl From<state::ERotationDirection> for ERotationDirection {
+    fn from(dir: state::ERotationDirection) -> ERotationDirection {
         match dir {
-            state::ERotationDir::Left => ERotationDir::Left,
-            state::ERotationDir::Right => ERotationDir::Right,
+            state::ERotationDirection::Left => ERotationDirection::Left,
+            state::ERotationDirection::Right => ERotationDirection::Right,
         }
     }
 }

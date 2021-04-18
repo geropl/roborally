@@ -68,6 +68,13 @@ impl Board {
         Ok(EConnection::Free(new_pos))
     }
 
+    pub fn get_tile_type_at(&self, pos: &Position) -> Result<ETileType, StateError> {
+        let index = self.tile_index(pos);
+        let tile = self.tiles.get(index)
+            .ok_or_else(|| StateError::PositionOffBoard{ position: *pos })?;
+        Ok(tile.ttype)
+    }
+
     pub fn get_start_position_or_fail(&self, start_position_id: StartPositionID) -> Result<Position, StateError> {
         for tile in &self.tiles {
             if let Some(id) = tile.start_position_id {
@@ -162,12 +169,12 @@ pub enum ETileType {
         speed: bool,
     },
     Rotator {
-        dir: ERotationDir,
+        dir: ERotationDirection,
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ERotationDir {
+pub enum ERotationDirection {
     Left,
     Right,
 }

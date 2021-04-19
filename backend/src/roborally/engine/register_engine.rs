@@ -1,6 +1,7 @@
 #![deny(clippy::single_match)]
 use std::slice::Iter;
 use std::fmt;
+use std::collections::HashSet;
 
 use failure::Fail;
 
@@ -73,7 +74,22 @@ impl RegisterEngine {
         //  1. gather potential move targets. Don't move through obstacles (any other than walls?)
         let mut state = state;
 
-        let mut moves: Vec<(RobotID, Position, EDirection, EConnection)> = vec![];
+        //  2 weed out duplicates (no two robots may move onto the same tile) "ghosting" (don't move through each other)
+        //     Generally: "If it's not clear what you should do, don't move either robot.")
+        #[derive(Clone, Copy)]
+        struct Move {
+            robot_id: RobotID,
+            target_position: Position,
+            origin_position: Position,
+            outbound_direction: EDirection,
+            connection: EConnection,
+        }
+        impl Move {
+            fn new(robot_id: RobotID, target_position: Position, origin_position: Position, outbound_direction: EDirection, connection: EConnection) -> Self {
+                Move { robot_id, target_position, origin_position, outbound_direction, connection }
+            }
+        }
+        let mut moves: Vec<Move> = vec![];
         for player_id in state.active_player_ids() {
             let robot = state.get_robot_by_player_id_or_fail(player_id)?;
             let tile_type = state.board.get_tile_type_at(&robot.position)?;
@@ -94,23 +110,22 @@ impl RegisterEngine {
             };
             let connection = state.board.get_neighbor_in(&robot.position, outbound_direction)?;
             match connection {
-                EConnection::Walled => moves.push((robot.id, robot.position, outbound_direction, connection)),
-                EConnection::OffPlatform(to) => moves.push((robot.id, to, outbound_direction, connection)),
-                EConnection::Free(to) => moves.push((robot.id, to, outbound_direction, connection)),
+                EConnection::Walled => moves.push(Move::new(robot.id, robot.position, robot.position, outbound_direction, connection)),
+                EConnection::OffPlatform(to) => moves.push(Move::new(robot.id, to, robot.position, outbound_direction, connection)),
+                EConnection::Free(to) => moves.push(Move::new(robot.id, to, robot.position, outbound_direction, connection)),
             };
         }
         
-        //  2. weed out duplicates (no two robots may move onto the same tile) and "ghosting" (don't move through each other)
-        //     Generally: "If it's not clear what you should do, don't move either robot.")
-        let moves = {
-            moves.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        // 2.1 duplicate targets: both don't move
+        let mut moves = {
+            moves.sort_by(|a, b| a.target_position.partial_cmp(&b.target_position).unwrap());
 
             let mut i: usize = 0;
             let mut i_out: usize = 0;
             let max = moves.len() as i32 - 1;
             while (i as i32) <= max {
                 if let Some(next_move) = moves.get(i + 1) {
-                    if moves[i].1.eq(&next_move.1) {
+                    if moves[i].target_position.eq(&next_move.target_position) {
                         // two robots try to move to the same position: don't move either
                         i = i + 2;
                         continue;
@@ -123,10 +138,19 @@ impl RegisterEngine {
             let (moves_new, _) = moves.split_at(i_out as usize);
             moves_new.to_vec()
         };
-        // TODO (geropl): implement ghosting
+        
+        // 2.2 ghosting (both exchange position): don't move, either.
+        let mut to_remove: HashSet<RobotID> = HashSet::new();
+        for mov in moves.iter() {
+            if moves.iter().any(|m| m.target_position == mov.origin_position && m.origin_position == mov.target_position) {
+                to_remove.insert(mov.robot_id);
+            }
+        }
+        moves.retain(|mov| to_remove.get(&mov.robot_id).is_none());
 
         //  3. Move all robots at once.
-        for (id, _, outbound_direction, connection) in moves {
+        for mov in moves {
+            let Move{ robot_id: id, outbound_direction, connection, ..  } = mov;
             let robot = state.get_robot_by_id_or_fail(id)?;
             let new_robot = match connection {
                 EConnection::Walled => continue,
@@ -136,6 +160,21 @@ impl RegisterEngine {
                         .die()
                 },
                 EConnection::Free(to) => {
+                    // Check: Don't move us into a static robot!
+                    // TODO (geropl): It feels odd to check this here. Should this be pushed to Board?
+                    //                In general, we try to be a tad to smart here. Alternatively, we could just move everything
+                    //                temporarily, observe the result and weed out wrong results by eliminating moves.
+                    if let Some(_) = state.get_robot_at_position(&to) {
+                        let is_static = match state.board.get_tile_type_at(&to)? {
+                            ETileType::Conveyor2{..} => false,
+                            ETileType::Conveyor3{..} => false,
+                            _ => true,
+                        };
+                        if is_static {
+                            continue;
+                        }
+                    }
+
                     let inbound_direction = outbound_direction.turn_around();
                     let rotation_direction = match state.board.get_tile_type_at(&to)? {
                         ETileType::Conveyor2{ out, input, .. } => {
@@ -257,7 +296,7 @@ impl RegisterEngine {
 
         // 2. Try to actually move
         while !push_stack.is_empty() {
-            let robot_id = push_stack.last().unwrap();
+            let robot_id = push_stack.last().unwrap();  // unwrap ok because we check is_empty before
             let robot = state.get_robot_by_id_or_fail(*robot_id)?;
             
             let new_robot = match board.get_neighbor_in(&robot.position, direction)? {
@@ -561,6 +600,86 @@ mod test {
         assert_eq!(actual_robot1.direction, EDirection::WEST, "robot1 direction");
         assert_eq!(actual_robot2.direction, EDirection::WEST, "robot2 direction");
         assert_eq!(actual_robot2.position, Position { x: 0, y: 1 }, "robot2 position");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_conveyor_moves_no_ghosting() -> Result<(), Error> {
+        let (board, _) = create_state(Some("test-conveyor-moves"))?;
+
+        // Players + Robots
+        let player_id1: u32 = 0;
+        let robot1_pos = Position::new(2, 1);
+        let robot1 = RobotBuilder::default()
+            .id(0)
+            .position(robot1_pos.clone())
+            .direction(EDirection::SOUTH)
+            .build().unwrap();
+        let player1 = Player::new_with_move(player_id1, robot1, MoveCard::new_from_moves(0, 1, &[]));
+
+        let player_id2: u32 = 1;
+        let robot2_pos = Position::new(3, 1);
+        let robot2 = RobotBuilder::default()
+            .id(1)
+            .position(robot2_pos)
+            .direction(EDirection::NORTH)
+            .build().unwrap();
+        let player2 = Player::new_with_move(player_id2, robot2, MoveCard::new_from_moves(1, 2, &[]));
+        let players = vec![player1, player2];
+
+        // State
+        let state = State::new_with_random_deck(board, players);
+        
+        let engine = RegisterEngine::default();
+        let actual_state = engine.execute_registers(state)?;
+
+        let actual_robot1 = actual_state.get_robot_by_player_id_or_fail(0)?;
+        let actual_robot2 = actual_state.get_robot_by_player_id_or_fail(1)?;
+        assert_eq!(actual_robot1.position, Position { x: 2, y: 1 }, "robot1 position");
+        assert_eq!(actual_robot1.direction, EDirection::SOUTH, "robot1 direction");
+        assert_eq!(actual_robot2.direction, EDirection::NORTH, "robot2 direction");
+        assert_eq!(actual_robot2.position, Position { x: 3, y: 1 }, "robot2 position");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_conveyor_moves_not_into_static_robot() -> Result<(), Error> {
+        let (board, _) = create_state(Some("test-conveyor-moves"))?;
+
+        // Players + Robots
+        let player_id1: u32 = 0;
+        let robot1_pos = Position::new(2, 0);
+        let robot1 = RobotBuilder::default()
+            .id(0)
+            .position(robot1_pos.clone())
+            .direction(EDirection::SOUTH)
+            .build().unwrap();
+        let player1 = Player::new_with_move(player_id1, robot1, MoveCard::new_from_moves(0, 1, &[]));
+
+        let player_id2: u32 = 1;
+        let robot2_pos = Position::new(3, 0);
+        let robot2 = RobotBuilder::default()
+            .id(1)
+            .position(robot2_pos)
+            .direction(EDirection::NORTH)
+            .build().unwrap();
+        let player2 = Player::new_with_move(player_id2, robot2, MoveCard::new_from_moves(1, 2, &[]));
+        let players = vec![player1, player2];
+
+        // State
+        let state = State::new_with_random_deck(board, players);
+        
+        let engine = RegisterEngine::default();
+        let actual_state = engine.execute_registers(state)?;
+
+        let actual_robot1 = actual_state.get_robot_by_player_id_or_fail(0)?;
+        let actual_robot2 = actual_state.get_robot_by_player_id_or_fail(1)?;
+        assert_eq!(actual_robot1.position, Position { x: 2, y: 0 }, "robot1 position");
+        assert_eq!(actual_robot1.direction, EDirection::SOUTH, "robot1 direction");
+        assert_eq!(actual_robot2.direction, EDirection::NORTH, "robot2 direction");
+        assert_eq!(actual_robot2.position, Position { x: 3, y: 0 }, "robot2 position");
 
         Ok(())
     }

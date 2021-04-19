@@ -136,6 +136,24 @@ impl EDirection {
         let new_index = (index as i8 + offset + max) % max;
         EDirection::DIRECTIONS[new_index as usize]
     }
+
+    pub fn rotate(&self, rotation_dir: &ERotationDirection) -> EDirection {
+        match rotation_dir {
+            ERotationDirection::Left => self.turn_left(),
+            ERotationDirection::Right => self.turn_right(),
+        }
+    }
+
+    /// try_rotate_towards tries to find a ERotationDirection (90° turn) to get from self (inbound direction) towards target direction
+    pub fn try_rotate_towards(&self, target: &EDirection) -> Option<ERotationDirection> {
+        if self.turn_around() == *target || self == target {
+            return None
+        }
+        if self.turn_left() == *target {
+            return Some(ERotationDirection::Left)
+        }
+        Some(ERotationDirection::Right)
+    }
 }
 
 impl Default for EDirection {
@@ -179,7 +197,7 @@ pub enum ERotationDirection {
     Right,
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Position {
     pub x: i32,
     pub y: i32,

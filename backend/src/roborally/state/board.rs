@@ -179,12 +179,12 @@ pub enum ETileType {
     Conveyor2 {
         out: EDirection,
         input: EDirection,
-        speed: bool,
+        express: bool,
     },
     Conveyor3 {
         out: EDirection,
         inputs: [EDirection; 2],
-        speed: bool,
+        express: bool,
     },
     Rotator {
         dir: ERotationDirection,

@@ -85,13 +85,13 @@ message TileType {
 message Conveyor2 {
     EDirection out = 1;
     EDirection input = 2;
-    bool speed = 3;
+    bool express = 3;
 }
 
 message Conveyor3 {
     EDirection out = 1;
     repeated EDirection inputs = 2;
-    bool speed = 3;
+    bool express = 3;
 }
 
 message Rotator {

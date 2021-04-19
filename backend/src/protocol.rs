@@ -254,15 +254,15 @@ impl From<state::ETileType> for TileType {
         let fields: Option<tile_type::Fields> = match ttype {
             state::ETileType::Regular => None,
             state::ETileType::NoTile => None,
-            state::ETileType::Conveyor2{ input, out, speed } => Some(tile_type::Fields::Conveyor2(Conveyor2 {
+            state::ETileType::Conveyor2{ input, out, express } => Some(tile_type::Fields::Conveyor2(Conveyor2 {
                 input: input as i32,
                 out: out as i32,
-                speed,
+                express,
             })),
-            state::ETileType::Conveyor3{ inputs, out, speed } => Some(tile_type::Fields::Conveyor3(Conveyor3 {
+            state::ETileType::Conveyor3{ inputs, out, express } => Some(tile_type::Fields::Conveyor3(Conveyor3 {
                 inputs: inputs.iter().map(|i| *i as i32).collect(),
                 out: out as i32,
-                speed,
+                express,
             })),
             state::ETileType::Rotator{ dir } => Some(tile_type::Fields::Rotator(Rotator { dir: dir as i32 })),
         };

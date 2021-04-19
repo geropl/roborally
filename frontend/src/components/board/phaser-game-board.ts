@@ -29,7 +29,7 @@ function charToDirection(dir: string): Direction
 
     throw Error("Unknown direction");
 }
-type Coneyortype = "normal" | "speed";
+type Coneyortype = "normal" | "express";
 const Coneyortype_NORMAL: Coneyortype = "normal";
 // const Coneyortype_SPEED: Coneyortype = "speed";
 // enum Coneyortype {
@@ -536,23 +536,18 @@ function mapApiBoardToBoard(apiBoard: ApiBoard.AsObject): Board {
             case ETileType.CONVEYOR2:
                 const conveyor2 = type.conveyor2!;
                 const conveyorStr = dirToLetter(conveyor2.out) + dirToLetter(conveyor2.input);
-                console.log(`(${x},${y}):` + conveyorStr);
-                // TODO(geropl): Speed?
-                c.setOverlay(Conveyor.fromDirections(conveyorStr));
+                c.setOverlay(Conveyor.fromDirections(conveyorStr, conveyor2.express ? "express" : "normal"));
                 break;
             case ETileType.CONVEYOR3:
                 const conveyor3 = type.conveyor3!;
                 const ins = conveyor3.inputsList.map(i => dirToLetter(i)).join("");
                 const conveyorStr3 = dirToLetter(conveyor3.out) + ins;
-                console.log(`(${x},${y}):` + conveyorStr3);
-                // TODO(geropl): Speed?
-                c.setOverlay(Conveyor.fromDirections(conveyorStr3));
+                c.setOverlay(Conveyor.fromDirections(conveyorStr3, conveyor3.express ? "express" : "normal"));
                 break;
         }
         // TODO(geropl): tile.startPositionId
         
         for (const wall of tile.wallsList) {
-            // TODO(geropl): Is this correct?
             const wx = wall === EDirection.WEST ? x + 1 : x;
             const wy = wall === EDirection.SOUTH ? y + 1 : y;
             switch (wall) {

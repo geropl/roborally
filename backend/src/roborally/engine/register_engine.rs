@@ -78,14 +78,14 @@ impl RegisterEngine {
             let robot = state.get_robot_by_player_id_or_fail(player_id)?;
             let tile_type = state.board.get_tile_type_at(&robot.position)?;
             let outbound_direction = match tile_type {
-                ETileType::Conveyor2 { out, speed, .. } => {
-                    if express_only && !speed {
+                ETileType::Conveyor2 { out, express, .. } => {
+                    if express_only && !express {
                         continue
                     }
                     out
                 },
-                ETileType::Conveyor3 { out, speed, .. } => {
-                    if express_only && !speed {
+                ETileType::Conveyor3 { out, express, .. } => {
+                    if express_only && !express {
                         continue
                     }
                     out

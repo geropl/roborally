@@ -8,7 +8,7 @@ USER gitpod
 RUN bash -lc "npm install -g gatsby-cli"
 
 # Install rust 1.51
-RUN bash -lc "rustup install 1.51 && \
+RUN bash -lc "unset CARGO_HOME && rustup install 1.51 && \
     rustup default 1.51 && \
     rustup component add \
         rustfmt \

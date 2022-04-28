@@ -2,6 +2,7 @@ FROM gitpod/workspace-full
 
 USER gitpod
 
+# Test bump
 # Install gatsby CLI
 RUN bash -lc "npm install -g gatsby-cli"
 

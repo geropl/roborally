@@ -1,6 +1,6 @@
 FROM gitpod/workspace-full
 
-ENV TRIGGER_UPDATE=5
+ENV TRIGGER_UPDATE=6
 
 USER gitpod
 
